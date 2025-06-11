@@ -21,3 +21,10 @@ elixir_fast_charge-*.tar
 
 # Temporary files, for example, from tests.
 /tmp/
+
+# Others
+/.fetch
+erl_crash.dump
+*.beam
+/config/*.secret.exs
+.elixir_ls/
