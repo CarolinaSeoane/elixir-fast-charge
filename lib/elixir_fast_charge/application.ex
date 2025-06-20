@@ -5,7 +5,8 @@ defmodule ElixirFastCharge.Application do
   # @impl true
   def start(_type, _args) do
     children = [
-      {ElixirFastCharge.Finder, []}
+      {ElixirFastCharge.Finder, []},
+      {DynamicSupervisor, strategy: :one_for_one, name: ElixirFastCharge.ChargingStationSupervisor}
     ]
 
     opts = [strategy: :one_for_one, name: ElixirFastCharge.Supervisor]
