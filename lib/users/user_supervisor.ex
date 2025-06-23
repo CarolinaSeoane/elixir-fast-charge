@@ -21,14 +21,7 @@ defmodule ElixirFastCharge.UserDynamicSupervisor do
 
         case DynamicSupervisor.start_child(__MODULE__, child_spec) do
           {:ok, user_pid} ->
-            case Registry.register(ElixirFastCharge.UserRegistry, username, user_pid) do
-              {:ok, _} ->
-                {:ok, user_pid}
-
-              {:error, {:already_registered, _existing_pid}} ->
-                DynamicSupervisor.terminate_child(__MODULE__, user_pid)
-                {:error, :username_taken}
-            end
+            {:ok, user_pid}
 
           {:error, reason} ->
             {:error, reason}

@@ -7,14 +7,21 @@ defmodule ElixirFastCharge.User do
 
   # @impl true
   def init({username, password}) do
-    initial_state = %{
-      username: username,
-      password: password,
-      created_at: DateTime.utc_now(),
-      last_activity: DateTime.utc_now()
-    }
-    IO.puts("User #{username} initialized")
-    {:ok, initial_state}
+    case Registry.register(ElixirFastCharge.UserRegistry, username, self()) do
+      {:ok, _} ->
+
+        initial_state = %{
+          username: username,
+          password: password,
+          created_at: DateTime.utc_now(),
+          last_activity: DateTime.utc_now()
+        }
+
+        {:ok, initial_state}
+
+      {:error, {:already_registered, _}} ->
+        {:stop, :username_taken}
+    end
   end
 
   def get_info(user_pid) do
