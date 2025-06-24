@@ -23,6 +23,7 @@ defmodule ElixirFastCharge.MixProject do
   defp deps do
     [
       {:plug_cowboy, "~> 2.0"},
+      {:cors_plug, "~> 3.0"},
       {:plug, "~> 1.15"},
       {:jason, "~> 1.4"},
       # {:dep_from_hexpm, "~> 0.3.0"},
