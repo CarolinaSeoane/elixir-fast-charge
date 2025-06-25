@@ -1,0 +1,7 @@
+# Debugging Registry issue
+
+# Verificar si el Registry está vivo
+Process.whereis(ElixirFastCharge.Stations.StationRegistry)
+
+# Verificar si hay algo registrado directamente en el Registry
+Registry.select(ElixirFastCharge.Stations.StationRegistry, [{{:"$1", :"$2", :"$3"}, [], [{{:"$1", :"$2"}}]}])
