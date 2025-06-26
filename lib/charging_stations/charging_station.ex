@@ -1,8 +1,8 @@
-defmodule ElixirFastCharge.ChargingStation do
+defmodule ElixirFastCharge.ChargingStations.ChargingStation do
   use GenServer
 
-  def start_link(station_id) do
-    GenServer.start_link(__MODULE__, station_id, name: station_id)
+  def start_link(station_id, station_data \\ %{}) do
+    GenServer.start_link(__MODULE__, {station_id, station_data}, name: station_id)
   end
 
   def get_status(station_id) do
@@ -18,12 +18,20 @@ defmodule ElixirFastCharge.ChargingStation do
   end
 
   @impl true
-  def init(station_id) do
+  def init({station_id, station_data}) do
     IO.puts("Charging Station #{station_id} started")
+
+    # Registrarse en el Registry estándar
+    case Registry.register(ElixirFastCharge.StationRegistry, station_id, self()) do
+      {:ok, _} ->
+        IO.puts("✓ Estación #{station_id} registrada en Registry")
+      {:error, reason} ->
+        IO.puts("✗ Error registrando #{station_id}: #{inspect(reason)}")
+    end
 
     initial_state = %{
       station_id: station_id,
-      available: true,
+      available: Map.get(station_data, :available, true),
       active_shifts: []
     }
 

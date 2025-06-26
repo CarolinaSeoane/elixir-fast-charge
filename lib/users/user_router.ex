@@ -1,13 +1,25 @@
 defmodule ElixirFastCharge.UserRouter do
   use Plug.Router
 
-  plug CORSPlug, origin: ["http://localhost:3000"]
-
   plug :match
-  plug Plug.Parsers, parsers: [:json],
-                     pass: ["application/json"],
-                     json_decoder: Jason
   plug :dispatch
+
+  get "/" do
+    users_raw = ElixirFastCharge.UserDynamicSupervisor.list_users()
+
+    users = users_raw
+    |> Enum.map(fn {username, pid} ->
+      %{
+        username: username,
+        pid: inspect(pid)
+      }
+    end)
+
+    send_json_response(conn, 200, %{
+      users: users,
+      count: length(users)
+    })
+  end
 
   post "/sign-up" do
     case extract_signup_params(conn.body_params) do

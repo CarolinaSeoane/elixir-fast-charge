@@ -1,0 +1,24 @@
+{
+  "stations": [
+    {
+      "station_id": "station_001",
+      "available": true
+    },
+    {
+      "station_id": "station_002",
+      "available": true
+    },
+    {
+      "station_id": "station_003", 
+      "available": true
+    },
+    {
+      "station_id": "station_004",
+      "available": false
+    },
+    {
+      "station_id": "station_005",
+      "available": true
+    }
+  ]
+} 
