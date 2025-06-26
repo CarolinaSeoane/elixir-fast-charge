@@ -27,13 +27,18 @@ defmodule ElixirFastCharge.ChargingStationSupervisor do
   end
 
   def list_charging_stations do
-    DynamicSupervisor.which_children(__MODULE__)
+    Registry.select(ElixirFastCharge.StationRegistry, [{{:"$1", :"$2", :"$3"}, [], [{{:"$1", :"$3"}}]}])
+    |> Enum.map(fn {station_id, pid} ->
+      %{
+        id: station_id,
+        pid: inspect(pid)
+      }
+    end)
   end
 
   def get_station_status(station_id) do
     pid = Process.whereis(station_id)
     ElixirFastCharge.ChargingStations.ChargingStation.get_status(pid)
   end
-
 
 end

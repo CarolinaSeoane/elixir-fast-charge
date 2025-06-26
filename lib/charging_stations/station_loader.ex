@@ -48,15 +48,13 @@ defmodule ElixirFastCharge.ChargingStations.StationLoader do
     config_path = Path.join([
       :code.priv_dir(:elixir_fast_charge),
       "..",
-      "lib",
-      "charging_stations",
+      "resources",
       "default_stations.json"
     ])
 
     fallback_path = Path.join([
       File.cwd!(),
-      "lib",
-      "charging_stations",
+      "resources",
       "default_stations.json"
     ])
 

@@ -12,7 +12,7 @@ defmodule ElixirFastCharge.Application do
       {DynamicSupervisor, strategy: :one_for_one, name: ElixirFastCharge.ChargingStationSupervisor},
       {ElixirFastCharge.ChargingStations.StationLoader, []},
       # HTTP server
-      {Plug.Cowboy, scheme: :http, plug: ElixirFastCharge.UserRouter, options: [port: 4000]}
+      {Plug.Cowboy, scheme: :http, plug: ElixirFastCharge.MainRouter, options: [port: 4000]}
     ]
 
     opts = [strategy: :one_for_one, name: ElixirFastCharge.Supervisor]
