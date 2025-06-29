@@ -2,23 +2,130 @@
   "stations": [
     {
       "station_id": "station_001",
-      "available": true
+      "available": true,
+      "location": {
+        "lat": -34.6037,
+        "lng": -58.3816,
+        "address": "Puerto Madero, CABA"
+      },
+      "charging_points": [
+        {
+          "point_id": "point_1",
+          "connector_type": "ccs",
+          "power_kw": 150,
+          "status": "available"
+        },
+        {
+          "point_id": "point_2", 
+          "connector_type": "type2",
+          "power_kw": 50,
+          "status": "available"
+        }
+      ]
     },
     {
       "station_id": "station_002",
-      "available": true
+      "available": true,
+      "location": {
+        "lat": -34.5875,
+        "lng": -58.3974,
+        "address": "Palermo, CABA"
+      },
+      "charging_points": [
+        {
+          "point_id": "point_1",
+          "connector_type": "ccs",
+          "power_kw": 100,
+          "status": "available"
+        },
+        {
+          "point_id": "point_2",
+          "connector_type": "chademo", 
+          "power_kw": 100,
+          "status": "available"
+        },
+        {
+          "point_id": "point_3",
+          "connector_type": "type2",
+          "power_kw": 22,
+          "status": "available"
+        }
+      ]
     },
     {
-      "station_id": "station_003", 
-      "available": true
+      "station_id": "station_003",
+      "available": true,
+      "location": {
+        "lat": -34.6118,
+        "lng": -58.3960,
+        "address": "San Telmo, CABA"
+      },
+      "charging_points": [
+        {
+          "point_id": "point_1",
+          "connector_type": "ccs",
+          "power_kw": 50,
+          "status": "available"
+        },
+        {
+          "point_id": "point_2",
+          "connector_type": "type2",
+          "power_kw": 43,
+          "status": "available"
+        }
+      ]
     },
     {
       "station_id": "station_004",
-      "available": false
+      "available": false,
+      "location": {
+        "lat": -34.5755,
+        "lng": -58.4037,
+        "address": "Belgrano, CABA"
+      },
+      "charging_points": [
+        {
+          "point_id": "point_1",
+          "connector_type": "ccs",
+          "power_kw": 200,
+          "status": "maintenance"
+        }
+      ]
     },
     {
       "station_id": "station_005",
-      "available": true
+      "available": true,
+      "location": {
+        "lat": -34.6092,
+        "lng": -58.3731,
+        "address": "La Boca, CABA"
+      },
+      "charging_points": [
+        {
+          "point_id": "point_1",
+          "connector_type": "ccs",
+          "power_kw": 75,
+          "status": "available"
+        },
+        {
+          "point_id": "point_2",
+          "connector_type": "chademo",
+          "power_kw": 75,
+          "status": "available"
+        },
+        {
+          "point_id": "point_3",
+          "connector_type": "type2",
+          "power_kw": 22,
+          "status": "available"
+        },
+        {
+          "point_id": "point_4",
+          "connector_type": "type2",
+          "power_kw": 11,
+          "status": "available"
+        }
+      ]
     }
   ]
 } 
