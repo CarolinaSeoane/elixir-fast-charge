@@ -25,11 +25,24 @@ defmodule ElixirFastCharge.ChargingStations.StationLoader do
         Enum.each(stations, fn station ->
           station_id = String.to_atom(station["station_id"])
           station_data = %{
-            available: station["available"]
+            available: station["available"],
+            location: %{
+              lat: station["location"]["lat"],
+              lng: station["location"]["lng"],
+              address: station["location"]["address"]
+            },
+            charging_points: Enum.map(station["charging_points"], fn point ->
+              %{
+                point_id: point["point_id"],
+                connector_type: String.to_atom(point["connector_type"]),
+                power_kw: point["power_kw"],
+                status: String.to_atom(point["status"])
+              }
+            end)
           }
           case ElixirFastCharge.ChargingStationSupervisor.start_charging_station(station_id, station_data) do
             {:ok, _pid} ->
-              IO.puts("✓ Estación #{station["station_id"]} cargada (disponible: #{station["available"]})")
+              IO.puts("✓ Estación #{station["station_id"]} cargada con #{length(station["charging_points"])} puntos de carga")
             {:error, {:already_started, _pid}} ->
               IO.puts("⚠ Estación #{station["station_id"]} ya estaba iniciada")
             {:error, reason} ->
