@@ -23,6 +23,7 @@ defmodule ElixirFastCharge.Storage.ShiftAgent do
 
       # Estado
       status: :active,
+      active: true,
       reserved_by: nil,
       reserved_at: nil
     }
@@ -48,6 +49,29 @@ defmodule ElixirFastCharge.Storage.ShiftAgent do
     end)
   end
 
+  def list_active_shifts_boolean do
+    Agent.get(__MODULE__, fn shifts ->
+      shifts
+      |> Enum.filter(fn {_id, shift} -> shift.active == true end)
+      |> Enum.map(fn {_id, shift} -> shift end)
+    end)
+  end
+
+  def list_inactive_shifts do
+    Agent.get(__MODULE__, fn shifts ->
+      shifts
+      |> Enum.filter(fn {_id, shift} -> shift.active == false end)
+      |> Enum.map(fn {_id, shift} -> shift end)
+    end)
+  end
+
+  def count_active_shifts do
+    Agent.get(__MODULE__, fn shifts ->
+      shifts
+      |> Enum.count(fn {_id, shift} -> shift.active == true end)
+    end)
+  end
+
   def list_shifts_by_station(station_id) do
     Agent.get(__MODULE__, fn shifts ->
       shifts
@@ -65,9 +89,10 @@ defmodule ElixirFastCharge.Storage.ShiftAgent do
         shift when shift.status != :active ->
           {{:error, :shift_not_available}, shifts}
 
-        shift ->
+                shift ->
           updated_shift = %{shift |
             status: :reserved,
+            active: false,
             reserved_by: user_id,
             reserved_at: DateTime.utc_now()
           }
@@ -83,7 +108,7 @@ defmodule ElixirFastCharge.Storage.ShiftAgent do
     Agent.update(__MODULE__, fn shifts ->
       Enum.map(shifts, fn {shift_id, shift} ->
         if shift.status == :active and DateTime.compare(now, shift.expires_at) == :gt do
-          {shift_id, %{shift | status: :expired}}
+          {shift_id, %{shift | status: :expired, active: false}}
         else
           {shift_id, shift}
         end
@@ -98,6 +123,20 @@ defmodule ElixirFastCharge.Storage.ShiftAgent do
 
   def count_shifts do
     Agent.get(__MODULE__, fn shifts -> map_size(shifts) end)
+  end
+
+  def set_shift_active(shift_id, active_status) when is_boolean(active_status) do
+    Agent.get_and_update(__MODULE__, fn shifts ->
+      case Map.get(shifts, shift_id) do
+        nil ->
+          {{:error, :shift_not_found}, shifts}
+
+        shift ->
+          updated_shift = %{shift | active: active_status}
+          updated_shifts = Map.put(shifts, shift_id, updated_shift)
+          {{:ok, updated_shift}, updated_shifts}
+      end
+    end)
   end
 
   defp generate_shift_id(station_id, point_id) do

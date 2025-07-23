@@ -49,29 +49,6 @@ defmodule ElixirFastCharge.UserRouter do
     end
   end
 
-  post "/preferences" do
-    case extract_preference_params(conn.body_params) do
-      {:ok, preference_data} ->
-        try do
-          ElixirFastCharge.Finder.add_preference(preference_data)
-
-          send_json_response(conn, 201, %{
-            message: "Preference created successfully",
-            preference: preference_data
-          })
-        rescue
-          error ->
-            send_json_response(conn, 500, %{
-              error: "Failed to create preference",
-              reason: inspect(error)
-            })
-        end
-
-      {:error, error_message} ->
-        send_json_response(conn, 400, %{error: error_message})
-    end
-  end
-
   get "/health" do
     send_json_response(conn, 200, %{
       status: "ok",
@@ -94,20 +71,6 @@ defmodule ElixirFastCharge.UserRouter do
 
       _ ->
         {:error, "username and password are required"}
-    end
-  end
-
-  defp extract_preference_params(body_params) do
-    case body_params do
-      params when is_map(params) and map_size(params) > 0 ->
-        preference_data =
-          params
-          |> Enum.map(fn {key, value} -> {String.to_atom(key), value} end)
-          |> Enum.into(%{})
-        IO.puts("preference_data: #{inspect(preference_data)}")
-        {:ok, preference_data}
-      _ ->
-        {:error, "Invalid preference data"}
     end
   end
 

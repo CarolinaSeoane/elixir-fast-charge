@@ -13,6 +13,8 @@ defmodule ElixirFastCharge.MainRouter do
 
   forward "/stations", to: ElixirFastCharge.StationRouter
 
+  forward "/shifts", to: ElixirFastCharge.ShiftRouter
+
   match _ do
     send_json_response(conn, 404, %{
       error: "Route not found"
