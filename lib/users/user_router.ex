@@ -104,6 +104,7 @@ defmodule ElixirFastCharge.UserRouter do
           params
           |> Enum.map(fn {key, value} -> {String.to_atom(key), value} end)
           |> Enum.into(%{})
+          |> Map.put(:alert, false)
         IO.puts("preference_data: #{inspect(preference_data)}")
         {:ok, preference_data}
       _ ->
