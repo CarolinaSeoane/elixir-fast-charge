@@ -10,7 +10,7 @@ defmodule ElixirFastCharge.Finder do
     IO.puts("Finder supervisor started")
 
     children = [
-      ElixirFastCharge.Preferences
+      {ElixirFastCharge.Preferences, %{}}
     ]
 
     Supervisor.init(children, strategy: :one_for_one)
@@ -22,5 +22,9 @@ defmodule ElixirFastCharge.Finder do
 
   def get_all_preferences do
     ElixirFastCharge.Preferences.get_all_preferences()
+  end
+
+  def update_preference_alert(username, preference_id, alert_status) do
+    ElixirFastCharge.Preferences.update_preference_alert(username, preference_id, alert_status)
   end
 end
