@@ -53,11 +53,11 @@ defmodule ElixirFastCharge.UserRouter do
     case extract_preference_params(conn.body_params) do
       {:ok, preference_data} ->
         try do
-          ElixirFastCharge.Finder.add_preference(preference_data)
+          created_preference = ElixirFastCharge.Finder.add_preference(preference_data)
 
           send_json_response(conn, 201, %{
             message: "Preference created successfully",
-            preference: preference_data
+            preference: created_preference
           })
         rescue
           error ->
@@ -104,6 +104,34 @@ defmodule ElixirFastCharge.UserRouter do
     end
   end
 
+  put "/alert" do
+    case extract_alert_params(conn.body_params) do
+      {:ok, username, preference_id, alert_status} ->
+        case ElixirFastCharge.Finder.update_preference_alert(username, preference_id, alert_status) do
+          {:ok, updated_preference} ->
+            send_json_response(conn, 200, %{
+              message: "Alert updated successfully",
+              alert: alert_status,
+              preference: updated_preference
+            })
+
+          {:error, :preference_not_found} ->
+            send_json_response(conn, 404, %{
+              error: "Preference not found"
+            })
+
+          {:error, reason} ->
+            send_json_response(conn, 500, %{
+              error: "Failed to update alert",
+              reason: inspect(reason)
+            })
+        end
+
+      {:error, error_message} ->
+        send_json_response(conn, 400, %{error: error_message})
+    end
+  end
+
   get "/health" do
     send_json_response(conn, 200, %{
       status: "ok",
@@ -136,6 +164,7 @@ defmodule ElixirFastCharge.UserRouter do
           params
           |> Enum.map(fn {key, value} -> {String.to_atom(key), value} end)
           |> Enum.into(%{})
+          |> Map.put(:alert, false)
         IO.puts("preference_data: #{inspect(preference_data)}")
         {:ok, preference_data}
       _ ->
@@ -200,6 +229,20 @@ defmodule ElixirFastCharge.UserRouter do
             Date.compare(fecha_preferencia, shift_date) == :eq
           _ -> false
         end
+    end
+  end
+
+  defp extract_alert_params(body_params) do
+    case body_params do
+      %{"username" => username, "preference_id" => preference_id, "alert" => alert}
+        when is_binary(username) and is_integer(preference_id) and is_boolean(alert) ->
+        {:ok, username, preference_id, alert}
+
+      %{"username" => _, "preference_id" => _, "alert" => _} ->
+        {:error, "username must be string, preference_id must be number, alert must be boolean"}
+
+      _ ->
+        {:error, "username, preference_id, and alert are required"}
     end
   end
 
