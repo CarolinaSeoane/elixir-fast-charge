@@ -1,7 +1,7 @@
 defmodule ElixirFastCharge.MainRouter do
   use Plug.Router
 
-  plug CORSPlug, origin: ["http://localhost:5014"]
+  plug CORSPlug, origin: ["http://localhost:3000"]
 
   plug :match
   plug Plug.Parsers, parsers: [:json],
