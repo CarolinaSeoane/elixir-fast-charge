@@ -72,6 +72,38 @@ defmodule ElixirFastCharge.UserRouter do
     end
   end
 
+  get "/:user_id/shifts" do
+    try do
+      user_preferences = ElixirFastCharge.Preferences.get_preferences_by_user(user_id)
+      active_shifts = ElixirFastCharge.Storage.ShiftAgent.list_active_shifts()
+
+      # Calcular score para cada turno y ordenar
+      shifts_with_scores = active_shifts
+      |> Enum.map(fn shift ->
+        preference_details = calculate_preference_details(shift, user_preferences)
+        total_score = Enum.sum(Enum.map(preference_details, & &1.score))
+
+        shift
+        |> Map.put(:preference_score, total_score)
+        |> Map.put(:preference_details, preference_details)
+      end)
+      |> Enum.sort_by(& &1.preference_score, :desc)
+
+      send_json_response(conn, 200, %{
+        shifts: shifts_with_scores,
+        count: length(shifts_with_scores),
+        user_id: user_id,
+        preferences_count: length(user_preferences)
+      })
+    rescue
+      error ->
+        send_json_response(conn, 500, %{
+          error: "Failed to retrieve shifts",
+          reason: inspect(error)
+        })
+    end
+  end
+
   put "/alert" do
     case extract_alert_params(conn.body_params) do
       {:ok, username, preference_id, alert_status} ->
@@ -137,6 +169,66 @@ defmodule ElixirFastCharge.UserRouter do
         {:ok, preference_data}
       _ ->
         {:error, "Invalid preference data"}
+    end
+  end
+
+  defp calculate_preference_details(shift, user_preferences) do
+    if Enum.empty?(user_preferences) do
+      []
+    else
+      user_preferences
+      |> Enum.with_index()
+      |> Enum.map(fn {preference, index} ->
+        score = calculate_single_preference_score(shift, preference)
+        matches = get_preference_matches(shift, preference)
+
+        %{
+          preference_id: index,
+          score: score,
+          matches: matches,
+          preference_data: preference
+        }
+      end)
+    end
+  end
+
+  defp get_preference_matches(shift, preference) do
+    %{
+      station_id: Map.get(preference, :station_id) == Atom.to_string(shift.station_id),
+      connector_type: Map.get(preference, :tipo_de_conector) == Atom.to_string(shift.connector_type),
+      power: Map.get(preference, :potencia) == shift.power_kw,
+      location: Map.get(preference, :location) && String.contains?(get_station_location(shift.station_id), Map.get(preference, :location)),
+      date: check_date_preference(preference, shift)
+    }
+  end
+
+  defp calculate_single_preference_score(shift, preference) do
+    matches = get_preference_matches(shift, preference)
+
+    matches
+    |> Map.values()
+    |> Enum.count(& &1)
+  end
+
+  defp get_station_location(station_id) do
+    case ElixirFastCharge.ChargingStations.ChargingStation.get_location(station_id) do
+      %{address: address} -> address
+      _ -> ""
+    end
+  rescue
+    _ -> ""
+  end
+
+  defp check_date_preference(preference, shift) do
+    case Map.get(preference, :fecha) do
+      nil -> false
+      fecha_str ->
+        case Date.from_iso8601(fecha_str) do
+          {:ok, fecha_preferencia} ->
+            shift_date = DateTime.to_date(shift.start_time)
+            Date.compare(fecha_preferencia, shift_date) == :eq
+          _ -> false
+        end
     end
   end
 
