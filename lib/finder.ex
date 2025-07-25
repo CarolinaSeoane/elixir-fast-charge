@@ -82,7 +82,15 @@ defmodule ElixirFastCharge.Finder do
 
   defp notify_user(preference, shift) do
     username = Map.get(preference, :username)
+    case Registry.lookup(ElixirFastCharge.UserRegistry, username) do
+      [{user_pid, _}] ->
+        notification = "New shift available! Station: #{shift.station_id}, Point: #{shift.point_id}, Time: #{shift.start_time} - #{shift.end_time}"
+        ElixirFastCharge.User.send_notification(user_pid, notification)
+        IO.puts("ALERT sent to #{username}")
 
-    IO.puts("ALERT for #{username}: New shift available")
+      [] ->
+        IO.puts("User #{username} not found - notification not sent")
+    end
   end
+
 end

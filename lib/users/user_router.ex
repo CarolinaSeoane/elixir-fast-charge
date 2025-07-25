@@ -113,6 +113,24 @@ defmodule ElixirFastCharge.UserRouter do
     })
   end
 
+  get "/:username/notifications" do
+    case Registry.lookup(ElixirFastCharge.UserRegistry, username) do
+      [{user_pid, _}] ->
+        notifications = ElixirFastCharge.User.get_notifications(user_pid)
+
+        send_json_response(conn, 200, %{
+          username: username,
+          notifications: notifications,
+          count: length(notifications)
+        })
+
+      [] ->
+        send_json_response(conn, 404, %{
+          error: "User not found"
+        })
+    end
+  end
+
   put "/alert" do
     case extract_alert_params(conn.body_params) do
       {:ok, username, preference_id, alert_status} ->
