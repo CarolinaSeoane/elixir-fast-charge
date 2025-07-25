@@ -27,7 +27,7 @@ defmodule ElixirFastCharge.ChargingStationSupervisor do
   end
 
   def list_charging_stations do
-    Registry.select(ElixirFastCharge.StationRegistry, [{{:"$1", :"$2", :"$3"}, [], [{{:"$1", :"$3"}}]}])
+    Registry.select(ElixirFastCharge.ChargingStations.StationRegistry, [{{:"$1", :"$2", :"$3"}, [], [{{:"$1", :"$3"}}]}])
     |> Enum.map(fn {station_id, pid} ->
       %{
         id: station_id,

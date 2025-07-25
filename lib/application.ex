@@ -6,13 +6,13 @@ defmodule ElixirFastCharge.Application do
   def start(_type, _args) do
     children = [
       {Registry, keys: :unique, name: ElixirFastCharge.UserRegistry},
-      {Registry, keys: :unique, name: ElixirFastCharge.StationRegistry},
       {ElixirFastCharge.Finder, []},
       {ElixirFastCharge.Storage.ShiftAgent, []},
       {ElixirFastCharge.UserDynamicSupervisor, []},
       {DynamicSupervisor, strategy: :one_for_one, name: ElixirFastCharge.ChargingStationSupervisor},
       {ElixirFastCharge.ChargingStations.StationLoader, []},
-      {Plug.Cowboy, scheme: :http, plug: ElixirFastCharge.MainRouter, options: [port: 5014, ref: :http_server]}
+      {Plug.Cowboy, scheme: :http, plug: ElixirFastCharge.MainRouter, options: [port: 5014, ref: :http_server]},
+      {ElixirFastCharge.ChargingStations.StationRegistry, []}
     ]
 
     opts = [strategy: :one_for_one, name: ElixirFastCharge.Supervisor]

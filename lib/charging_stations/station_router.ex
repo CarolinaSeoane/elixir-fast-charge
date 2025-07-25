@@ -8,8 +8,8 @@ defmodule ElixirFastCharge.StationRouter do
   plug :dispatch
 
 
-      get "/" do
-    station_tuples = ElixirFastCharge.Finder.list_all_stations()
+  get "/" do
+    station_tuples = ElixirFastCharge.ChargingStations.StationRegistry.list_stations()
 
     stations = Enum.map(station_tuples, fn {station_id, _pid} ->
       try do
