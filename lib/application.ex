@@ -21,7 +21,7 @@ defmodule ElixirFastCharge.Application do
 
   @impl true
   def stop(_state) do
-    IO.puts("🛑 Cerrando servidor HTTP en puerto 4000...")
+    IO.puts("Cerrando servidor HTTP en puerto 5014...")
     :cowboy.stop_listener(:http_server)
     :ok
   end
