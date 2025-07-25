@@ -120,7 +120,10 @@ defmodule ElixirFastCharge.ChargingStations.ChargingStation do
       }
 
       case ElixirFastCharge.Storage.ShiftAgent.create_shift(shift_data) do
-        {:ok, shift} -> shift
+        {:ok, shift} ->
+          # send alerts
+          ElixirFastCharge.Finder.send_alerts(shift)
+          shift
       end
     end)
     |> Enum.filter(& &1)
@@ -145,6 +148,8 @@ defmodule ElixirFastCharge.ChargingStations.ChargingStation do
 
       case ElixirFastCharge.Storage.ShiftAgent.create_shift(shift_data) do
         {:ok, shift} ->
+          # send alerts
+          ElixirFastCharge.Finder.send_alerts(shift)
           {:reply, {:ok, shift}, state}
       end
     else

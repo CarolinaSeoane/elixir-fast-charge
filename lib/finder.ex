@@ -39,4 +39,50 @@ defmodule ElixirFastCharge.Finder do
       pid -> {:ok, pid}
     end
   end
+
+  def send_alerts(shift) do
+    preferences_with_alerts = get_preferences_with_alerts()
+
+    # Find preferences that match this shift
+    matching_preferences = find_matching_preferences(preferences_with_alerts, shift)
+
+    Enum.each(matching_preferences, fn preference ->
+      notify_user(preference, shift)
+    end)
+
+    # Return count
+    length(matching_preferences)
+  end
+
+  defp get_preferences_with_alerts do
+    get_all_preferences()
+    |> Enum.filter(fn pref -> Map.get(pref, :alert) == true end)
+  end
+
+  defp find_matching_preferences(preferences, shift) do
+    Enum.filter(preferences, fn preference ->
+      preference_matches_shift?(preference, shift)
+    end)
+  end
+
+  defp preference_matches_shift?(preference, shift) do
+    # system fields, not criteria. Must be ignored
+    filter_fields = [:alert, :preference_id, :timestamp, :username]
+
+    Enum.all?(preference, fn {key, value} ->
+      if key in filter_fields do
+        # Skip system fields
+        true
+      else
+        # Criteria field must match the shift
+        Map.get(shift, key) == value
+      end
+    end)
+  end
+
+  defp notify_user(preference, shift) do
+    username = Map.get(preference, :username)
+
+    IO.puts("ALERT for #{username}: New shift available")
+  end
 end
