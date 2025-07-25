@@ -104,6 +104,15 @@ defmodule ElixirFastCharge.UserRouter do
     end
   end
 
+  get "/preferences" do
+    preferences = ElixirFastCharge.Finder.get_all_preferences()
+
+    send_json_response(conn, 200, %{
+      preferences: preferences,
+      count: length(preferences)
+    })
+  end
+
   put "/alert" do
     case extract_alert_params(conn.body_params) do
       {:ok, username, preference_id, alert_status} ->
