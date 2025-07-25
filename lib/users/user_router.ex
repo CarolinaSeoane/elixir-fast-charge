@@ -72,6 +72,14 @@ defmodule ElixirFastCharge.UserRouter do
     end
   end
 
+  get "/:username/preferences" do
+      user_preferences = ElixirFastCharge.Preferences.get_preferences_by_user(username)
+      send_json_response(conn, 200, %{
+        preferences: user_preferences,
+        preferences_count: length(user_preferences)
+      })
+  end
+
   get "/:user_id/shifts" do
     try do
       user_preferences = ElixirFastCharge.Preferences.get_preferences_by_user(user_id)

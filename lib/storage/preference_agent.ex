@@ -1,3 +1,13 @@
+"
+preference = {
+  username:
+  station_id:
+  connector_type:
+  power:
+  location:
+}
+"
+
 defmodule ElixirFastCharge.Preferences do
   use Agent
 
@@ -35,6 +45,7 @@ defmodule ElixirFastCharge.Preferences do
       |> Enum.filter(fn pref -> Map.get(pref, :username) == usuario end)
     end)
   end
+
   def delete_preferences_by_user(usuario) do
     Agent.update(__MODULE__, fn preferences ->
       Enum.reject(preferences, fn {_id, pref} -> Map.get(pref, :username) == usuario end)
