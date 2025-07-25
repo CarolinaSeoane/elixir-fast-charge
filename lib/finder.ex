@@ -27,4 +27,16 @@ defmodule ElixirFastCharge.Finder do
   def update_preference_alert(username, preference_id, alert_status) do
     ElixirFastCharge.Preferences.update_preference_alert(username, preference_id, alert_status)
   end
+
+  def list_all_stations do
+    ElixirFastCharge.ChargingStations.StationRegistry.list_stations()
+    |> Enum.to_list()
+  end
+
+  def find_station(station_id) do
+    case ElixirFastCharge.ChargingStations.StationRegistry.get_station(station_id) do
+      nil -> {:error, :not_found}
+      pid -> {:ok, pid}
+    end
+  end
 end
