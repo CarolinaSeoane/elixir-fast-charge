@@ -1,13 +1,8 @@
 defmodule ElixirFastCharge.StationRouter do
   use Plug.Router
 
-  plug CORSPlug, origin: ["http://localhost:4003"]
   plug :match
-  plug Plug.Parsers, parsers: [:json],
-                     pass: ["application/json"],
-                     json_decoder: Jason
   plug :dispatch
-
 
   get "/" do
     station_tuples = ElixirFastCharge.ChargingStations.StationRegistry.list_stations()
