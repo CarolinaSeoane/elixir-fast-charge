@@ -2,14 +2,10 @@ defmodule ElixirFastCharge.StationRouter do
   use Plug.Router
 
   plug :match
-  plug Plug.Parsers, parsers: [:json],
-                     pass: ["application/json"],
-                     json_decoder: Jason
   plug :dispatch
 
-
   get "/" do
-    station_tuples = ElixirFastCharge.Finder.list_all_stations()
+    station_tuples = ElixirFastCharge.ChargingStations.StationRegistry.list_stations()
 
     stations = Enum.map(station_tuples, fn {station_id, _pid} ->
       try do
