@@ -1,7 +1,11 @@
 defmodule ElixirFastCharge.UserRouter do
   use Plug.Router
 
+  plug CORSPlug, origin: ["http://localhost:4003"]
   plug :match
+  plug Plug.Parsers, parsers: [:json],
+                     pass: ["application/json"],
+                     json_decoder: Jason
   plug :dispatch
 
   get "/" do
@@ -56,6 +60,29 @@ defmodule ElixirFastCharge.UserRouter do
     })
   end
 
+  put "/:username/preferences" do
+    case ElixirFastCharge.UserDynamicSupervisor.get_user(username) do
+      {:ok, user_pid} ->
+        new_preferences = %{
+          connector_type: parse_connector_type(conn.body_params["connector_type"]),
+          min_power: conn.body_params["min_power"],
+          max_power: conn.body_params["max_power"],
+          preferred_stations: conn.body_params["preferred_stations"] || []
+        }
+
+        ElixirFastCharge.User.update_preferences(user_pid, new_preferences)
+
+        send_json_response(conn, 200, %{
+          message: "Preferences updated successfully",
+          username: username,
+          preferences: new_preferences
+        })
+
+      {:error, :not_found} ->
+        send_json_response(conn, 404, %{error: "User not found"})
+    end
+  end
+
   match _ do
     send_json_response(conn, 404, %{error: "Route not found"})
   end
@@ -79,5 +106,11 @@ defmodule ElixirFastCharge.UserRouter do
     |> put_resp_content_type("application/json")
     |> send_resp(status, Jason.encode!(data))
   end
+
+  defp parse_connector_type(nil), do: nil
+  defp parse_connector_type("ccs"), do: :ccs
+  defp parse_connector_type("chademo"), do: :chademo
+  defp parse_connector_type("type2"), do: :type2
+  defp parse_connector_type(_), do: nil
 
 end
