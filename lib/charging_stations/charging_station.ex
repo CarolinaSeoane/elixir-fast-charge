@@ -120,10 +120,10 @@ defmodule ElixirFastCharge.ChargingStations.ChargingStation do
       }
 
       case ElixirFastCharge.Storage.ShiftAgent.create_shift(shift_data) do
-        {:ok, shift} -> shift
-        {:error, reason} ->
-          IO.puts("Error creando turno para #{point.point_id}: #{inspect(reason)}")
-          nil
+        {:ok, shift} ->
+          # send alerts
+          ElixirFastCharge.Finder.send_alerts(shift)
+          shift
       end
     end)
     |> Enum.filter(& &1)
@@ -148,10 +148,9 @@ defmodule ElixirFastCharge.ChargingStations.ChargingStation do
 
       case ElixirFastCharge.Storage.ShiftAgent.create_shift(shift_data) do
         {:ok, shift} ->
+          # send alerts
+          ElixirFastCharge.Finder.send_alerts(shift)
           {:reply, {:ok, shift}, state}
-        {:error, reason} ->
-          IO.puts("Error creando turno para #{point.point_id}: #{inspect(reason)}")
-          {:reply, {:error, reason}, state}
       end
     else
       IO.puts("Punto de carga #{point_id} no encontrado")

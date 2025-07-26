@@ -9,7 +9,7 @@ defmodule ElixirFastCharge.StationRouter do
 
 
   get "/" do
-    station_tuples = ElixirFastCharge.ChargingStations.StationRegistry.list_stations()
+    station_tuples = ElixirFastCharge.Finder.list_all_stations()
 
     stations = Enum.map(station_tuples, fn {station_id, _pid} ->
       try do
