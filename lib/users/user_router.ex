@@ -83,26 +83,20 @@ defmodule ElixirFastCharge.UserRouter do
   get "/:username/shifts" do
     try do
       user_preferences = ElixirFastCharge.Preferences.get_preferences_by_user(username)
-      # active_shifts = ElixirFastCharge.Storage.ShiftAgent.list_active_shifts()
-      active_shifts = ElixirFastCharge.Storage.ShiftAgent.get_all_shifts()
+      active_shifts = ElixirFastCharge.Storage.ShiftAgent.list_active_shifts()
 
-      IO.inspect(active_shifts, label: "Active shifts")
+      # Para cada turno, contar cuántas preferencias lo matchean al 100%
+      shifts_with_match_count = active_shifts
+      |> Enum.map(fn shift ->
+        matching_preferences_count = count_matching_preferences(shift, user_preferences)
 
-      # Calcular score para cada turno y ordenar
-      shifts_with_scores = active_shifts
-      # |> Enum.map(fn shift ->
-      #   preference_details = calculate_preference_details(shift, user_preferences)
-      #   total_score = Enum.sum(Enum.map(preference_details, & &1.score))
-
-      #   shift
-      #   |> Map.put(:preference_score, total_score)
-      #   |> Map.put(:preference_details, preference_details)
-      # end)
-      # |> Enum.sort_by(& &1.preference_score, :desc)
+        shift
+        |> Map.put(:matching_preferences_count, matching_preferences_count)
+      end)
+      |> Enum.sort_by(& &1.matching_preferences_count, :desc)
 
       send_json_response(conn, 200, %{
-        shifts: shifts_with_scores,
-        # count: length(shifts_with_scores),
+        shifts: shifts_with_match_count,
         username: username,
         preferences_count: length(user_preferences)
       })
@@ -203,71 +197,37 @@ defmodule ElixirFastCharge.UserRouter do
           |> Enum.map(fn {key, value} -> {String.to_atom(key), value} end)
           |> Enum.into(%{})
           |> Map.put(:alert, false)
-        IO.puts("preference_data: #{inspect(preference_data)}")
         {:ok, preference_data}
       _ ->
         {:error, "Invalid preference data"}
     end
   end
 
-  defp calculate_preference_details(shift, user_preferences) do
-    if Enum.empty?(user_preferences) do
-      []
-    else
-      user_preferences
-      |> Enum.with_index()
-      |> Enum.map(fn {preference, index} ->
-        score = calculate_single_preference_score(shift, preference)
-        matches = get_preference_matches(shift, preference)
-
-        %{
-          preference_id: index,
-          score: score,
-          matches: matches,
-          preference_data: preference
-        }
-      end)
-    end
+  defp count_matching_preferences(shift, user_preferences) do
+    # Contar cuántas preferencias matchean al 100% con este turno
+    Enum.count(user_preferences, fn preference ->
+      preference_matches_shift_completely?(preference, shift)
+    end)
   end
 
-  defp get_preference_matches(shift, preference) do
-    %{
-      station_id: Map.get(preference, :station_id) == Atom.to_string(shift.station_id),
-      connector_type: Map.get(preference, :tipo_de_conector) == Atom.to_string(shift.connector_type),
-      power: Map.get(preference, :potencia) == shift.power_kw,
-      location: Map.get(preference, :location) && String.contains?(get_station_location(shift.station_id), Map.get(preference, :location)),
-      date: check_date_preference(preference, shift)
-    }
-  end
+  defp preference_matches_shift_completely?(preference, shift) do
+    system_fields = [:alert, :preference_id, :timestamp, :username]
 
-  defp calculate_single_preference_score(shift, preference) do
-    matches = get_preference_matches(shift, preference)
+    # Verificar que todos los campos de la preferencia (excepto los del sistema) coincidan con el turno
+    result = Enum.all?(preference, fn {key, value} ->
+      if key in system_fields do
+        true
+      else
+        shift_value = Map.get(shift, key)
 
-    matches
-    |> Map.values()
-    |> Enum.count(& &1)
-  end
-
-  defp get_station_location(station_id) do
-    case ElixirFastCharge.ChargingStations.ChargingStation.get_location(station_id) do
-      %{address: address} -> address
-      _ -> ""
-    end
-  rescue
-    _ -> ""
-  end
-
-  defp check_date_preference(preference, shift) do
-    case Map.get(preference, :fecha) do
-      nil -> false
-      fecha_str ->
-        case Date.from_iso8601(fecha_str) do
-          {:ok, fecha_preferencia} ->
-            shift_date = DateTime.to_date(shift.start_time)
-            Date.compare(fecha_preferencia, shift_date) == :eq
-          _ -> false
-        end
-    end
+        # Convertir atoms a strings si es necesario para comparación
+        normalized_shift_value = if is_atom(shift_value), do: Atom.to_string(shift_value), else: shift_value
+        normalized_pref_value = if is_atom(value), do: Atom.to_string(value), else: value
+        match_result = normalized_shift_value == normalized_pref_value
+        match_result
+      end
+    end)
+    result
   end
 
   defp extract_alert_params(body_params) do
