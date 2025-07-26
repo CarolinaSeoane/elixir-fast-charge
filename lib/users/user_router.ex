@@ -83,23 +83,26 @@ defmodule ElixirFastCharge.UserRouter do
   get "/:username/shifts" do
     try do
       user_preferences = ElixirFastCharge.Preferences.get_preferences_by_user(username)
-      active_shifts = ElixirFastCharge.Storage.ShiftAgent.list_active_shifts()
+      # active_shifts = ElixirFastCharge.Storage.ShiftAgent.list_active_shifts()
+      active_shifts = ElixirFastCharge.Storage.ShiftAgent.get_all_shifts()
+
+      IO.inspect(active_shifts, label: "Active shifts")
 
       # Calcular score para cada turno y ordenar
       shifts_with_scores = active_shifts
-      |> Enum.map(fn shift ->
-        preference_details = calculate_preference_details(shift, user_preferences)
-        total_score = Enum.sum(Enum.map(preference_details, & &1.score))
+      # |> Enum.map(fn shift ->
+      #   preference_details = calculate_preference_details(shift, user_preferences)
+      #   total_score = Enum.sum(Enum.map(preference_details, & &1.score))
 
-        shift
-        |> Map.put(:preference_score, total_score)
-        |> Map.put(:preference_details, preference_details)
-      end)
-      |> Enum.sort_by(& &1.preference_score, :desc)
+      #   shift
+      #   |> Map.put(:preference_score, total_score)
+      #   |> Map.put(:preference_details, preference_details)
+      # end)
+      # |> Enum.sort_by(& &1.preference_score, :desc)
 
       send_json_response(conn, 200, %{
         shifts: shifts_with_scores,
-        count: length(shifts_with_scores),
+        # count: length(shifts_with_scores),
         username: username,
         preferences_count: length(user_preferences)
       })

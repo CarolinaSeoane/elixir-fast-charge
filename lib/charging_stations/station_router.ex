@@ -34,36 +34,33 @@ defmodule ElixirFastCharge.StationRouter do
   get "/:station_id" do
     station_id = String.to_atom(station_id)
 
-    case ElixirFastCharge.Finder.find_station(station_id) do
-      {:ok, _pid} ->
-        station_data = ElixirFastCharge.ChargingStations.ChargingStation.get_status(station_id)
-        send_json_response(conn, 200, station_data)
-      {:error, :not_found} ->
-        send_json_response(conn, 404, %{error: "Station not found"})
+    if _pid = ElixirFastCharge.ChargingStations.StationRegistry.get_station(station_id) do
+      station_data = ElixirFastCharge.ChargingStations.ChargingStation.get_status(station_id)
+      send_json_response(conn, 200, station_data)
+    else
+      send_json_response(conn, 404, %{error: "Station not found"})
     end
   end
 
   get "/:station_id/charging-points" do
     station_id = String.to_atom(station_id)
 
-    case ElixirFastCharge.Finder.find_station(station_id) do
-      {:ok, _pid} ->
-        points = ElixirFastCharge.ChargingStations.ChargingStation.get_charging_points(station_id)
-        send_json_response(conn, 200, %{charging_points: points})
-      {:error, :not_found} ->
-        send_json_response(conn, 404, %{error: "Station not found"})
+    if _pid = ElixirFastCharge.ChargingStations.StationRegistry.get_station(station_id) do
+      points = ElixirFastCharge.ChargingStations.ChargingStation.get_charging_points(station_id)
+      send_json_response(conn, 200, %{charging_points: points})
+    else
+      send_json_response(conn, 404, %{error: "Station not found"})
     end
   end
 
   get "/:station_id/available-points" do
     station_id = String.to_atom(station_id)
 
-    case ElixirFastCharge.Finder.find_station(station_id) do
-      {:ok, _pid} ->
-        points = ElixirFastCharge.ChargingStations.ChargingStation.get_available_points(station_id)
-        send_json_response(conn, 200, %{available_points: points})
-      {:error, :not_found} ->
-        send_json_response(conn, 404, %{error: "Station not found"})
+    if _pid = ElixirFastCharge.ChargingStations.StationRegistry.get_station(station_id) do
+      points = ElixirFastCharge.ChargingStations.ChargingStation.get_available_points(station_id)
+      send_json_response(conn, 200, %{available_points: points})
+    else
+      send_json_response(conn, 404, %{error: "Station not found"})
     end
   end
 
