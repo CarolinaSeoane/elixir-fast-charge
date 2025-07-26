@@ -1,16 +1,10 @@
 defmodule ElixirFastCharge.ShiftRouter do
   use Plug.Router
 
-  plug CORSPlug, origin: ["http://localhost:4003"]
   plug :match
-  plug Plug.Parsers, parsers: [:json],
-                     pass: ["application/json"],
-                     json_decoder: Jason
   plug :dispatch
 
-  # === RUTAS PRINCIPALES DE TURNOS ===
-
-        get "/active" do
+  get "/active" do
     shifts = ElixirFastCharge.Storage.ShiftAgent.list_active_shifts()
 
     send_json_response(conn, 200, %{
@@ -19,7 +13,7 @@ defmodule ElixirFastCharge.ShiftRouter do
     })
   end
 
-    get "/recommended" do
+  get "/recommended" do
     alias ElixirFastCharge.Shifts.ShiftController
 
     case conn.query_params["user_id"] do
@@ -44,7 +38,7 @@ defmodule ElixirFastCharge.ShiftRouter do
     end
   end
 
-    get "/inactive" do
+  get "/inactive" do
     alias ElixirFastCharge.Shifts.ShiftController
 
     shifts = ShiftController.list_inactive_shifts()
@@ -64,7 +58,7 @@ defmodule ElixirFastCharge.ShiftRouter do
     })
   end
 
-    get "/count" do
+  get "/count" do
     alias ElixirFastCharge.Shifts.ShiftController
 
     counts = ShiftController.get_shift_counts()

@@ -15,12 +15,7 @@ defmodule ElixirFastCharge.User do
           password: password,
           created_at: DateTime.utc_now(),
           last_activity: DateTime.utc_now(),
-          preferences: %{
-            connector_type: nil,
-            min_power: nil,
-            max_power: nil,
-            preferred_stations: []
-          }
+          notifications: []
         }
 
         {:ok, initial_state}
@@ -38,12 +33,12 @@ defmodule ElixirFastCharge.User do
     GenServer.call(user_pid, :healthcheck)
   end
 
-  def get_preferences(user_pid) do
-    GenServer.call(user_pid, :get_preferences)
+  def send_notification(user_pid, notification) do
+    GenServer.call(user_pid, {:send_notification, notification})
   end
 
-  def update_preferences(user_pid, new_preferences) do
-    GenServer.call(user_pid, {:update_preferences, new_preferences})
+  def get_notifications(user_pid) do
+    GenServer.call(user_pid, :get_notifications)
   end
 
   # @impl true
@@ -63,15 +58,12 @@ defmodule ElixirFastCharge.User do
     {:reply, "User #{state.username} running", new_state}
   end
 
-  # @impl true
-  def handle_call(:get_preferences, _from, state) do
-    {:reply, state.preferences, state}
+  def handle_call({:send_notification, notification}, _from, state) do
+    new_state = %{state | notifications: [notification | state.notifications]}
+    {:reply, :ok, new_state}
   end
 
-  # @impl true
-  def handle_call({:update_preferences, new_preferences}, _from, state) do
-    updated_preferences = Map.merge(state.preferences, new_preferences)
-    new_state = %{state | preferences: updated_preferences}
-    {:reply, {:ok, updated_preferences}, new_state}
+  def handle_call(:get_notifications, _from, state) do
+    {:reply, state.notifications, state}
   end
 end

@@ -14,6 +14,7 @@ defmodule ElixirFastCharge.Storage.ShiftAgent do
       point_id: shift_data.point_id,
       connector_type: shift_data.connector_type,
       power_kw: shift_data.power_kw,
+      location: shift_data.location.address,
 
       # Temporal
       start_time: shift_data.start_time,

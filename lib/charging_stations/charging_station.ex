@@ -42,7 +42,7 @@ defmodule ElixirFastCharge.ChargingStations.ChargingStation do
     IO.puts("Charging Station #{station_id} started")
 
     # Registrarse en el Registry estándar
-    case Registry.register(ElixirFastCharge.StationRegistry, station_id, self()) do
+    case Registry.register(ElixirFastCharge.ChargingStations.StationRegistry, station_id, self()) do
       {:ok, _} ->
         IO.puts("✓ Estación #{station_id} registrada en Registry")
       {:error, reason} ->
@@ -116,14 +116,15 @@ defmodule ElixirFastCharge.ChargingStations.ChargingStation do
         power_kw: point.power_kw,
         start_time: shift_params.start_time,
         end_time: shift_params.end_time,
-        expires_at: shift_params.expires_at
+        expires_at: shift_params.expires_at,
+        location: state.location
       }
 
       case ElixirFastCharge.Storage.ShiftAgent.create_shift(shift_data) do
-        {:ok, shift} -> shift
-        {:error, reason} ->
-          IO.puts("Error creando turno para #{point.point_id}: #{inspect(reason)}")
-          nil
+        {:ok, shift} ->
+          # send alerts
+          ElixirFastCharge.Finder.send_alerts(shift)
+          shift
       end
     end)
     |> Enum.filter(& &1)
@@ -143,15 +144,15 @@ defmodule ElixirFastCharge.ChargingStations.ChargingStation do
         power_kw: point.power_kw,
         start_time: shift_params.start_time,
         end_time: shift_params.end_time,
-        expires_at: shift_params.expires_at
+        expires_at: shift_params.expires_at,
+        location: state.location
       }
 
       case ElixirFastCharge.Storage.ShiftAgent.create_shift(shift_data) do
         {:ok, shift} ->
+          # send alerts
+          ElixirFastCharge.Finder.send_alerts(shift)
           {:reply, {:ok, shift}, state}
-        {:error, reason} ->
-          IO.puts("Error creando turno para #{point.point_id}: #{inspect(reason)}")
-          {:reply, {:error, reason}, state}
       end
     else
       IO.puts("Punto de carga #{point_id} no encontrado")
