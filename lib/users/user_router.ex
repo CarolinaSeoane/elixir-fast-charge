@@ -83,22 +83,21 @@ defmodule ElixirFastCharge.UserRouter do
   get "/:username/shifts" do
     try do
       user_preferences = ElixirFastCharge.Preferences.get_preferences_by_user(username)
-      # active_shifts = ElixirFastCharge.Storage.ShiftAgent.list_active_shifts()
-      active_shifts = ElixirFastCharge.Storage.ShiftAgent.get_all_shifts()
+      active_shifts = ElixirFastCharge.Storage.ShiftAgent.list_active_shifts()
 
       IO.inspect(active_shifts, label: "Active shifts")
 
       # Calcular score para cada turno y ordenar
       shifts_with_scores = active_shifts
-      # |> Enum.map(fn shift ->
-      #   preference_details = calculate_preference_details(shift, user_preferences)
-      #   total_score = Enum.sum(Enum.map(preference_details, & &1.score))
+      |> Enum.map(fn shift ->
+        preference_details = calculate_preference_details(shift, user_preferences)
+        total_score = Enum.sum(Enum.map(preference_details, & &1.score))
 
-      #   shift
-      #   |> Map.put(:preference_score, total_score)
-      #   |> Map.put(:preference_details, preference_details)
-      # end)
-      # |> Enum.sort_by(& &1.preference_score, :desc)
+        shift
+        |> Map.put(:preference_score, total_score)
+        |> Map.put(:preference_details, preference_details)
+      end)
+      |> Enum.sort_by(& &1.preference_score, :desc)
 
       send_json_response(conn, 200, %{
         shifts: shifts_with_scores,
@@ -210,6 +209,26 @@ defmodule ElixirFastCharge.UserRouter do
     end
   end
 
+  # defp calculate_preference_details(shift, user_preferences) do
+  #   if Enum.empty?(user_preferences) do
+  #     []
+  #   else
+  #     user_preferences
+  #     |> Enum.with_index()
+  #     |> Enum.map(fn {preference, index} ->
+  #       score = calculate_single_preference_score(shift, preference)
+  #       matches = get_preference_matches(shift, preference)
+
+  #       %{
+  #         preference_id: index,
+  #         score: score,
+  #         matches: matches,
+  #         preference_data: preference
+  #       }
+  #     end)
+  #   end
+  # end
+
   defp calculate_preference_details(shift, user_preferences) do
     if Enum.empty?(user_preferences) do
       []
@@ -217,36 +236,75 @@ defmodule ElixirFastCharge.UserRouter do
       user_preferences
       |> Enum.with_index()
       |> Enum.map(fn {preference, index} ->
-        score = calculate_single_preference_score(shift, preference)
-        matches = get_preference_matches(shift, preference)
+        {score, matches_log, matches_map} = match_and_score(shift, preference)
+
+        IO.puts("🔎 Preference ##{index} for Shift ID: #{shift.shift_id}")
+        Enum.each(matches_log, &IO.puts(&1))
 
         %{
           preference_id: index,
           score: score,
-          matches: matches,
+          matches: matches_map,
           preference_data: preference
         }
       end)
     end
   end
 
-  defp get_preference_matches(shift, preference) do
-    %{
-      station_id: Map.get(preference, :station_id) == Atom.to_string(shift.station_id),
-      connector_type: Map.get(preference, :tipo_de_conector) == Atom.to_string(shift.connector_type),
-      power: Map.get(preference, :potencia) == shift.power_kw,
-      location: Map.get(preference, :location) && String.contains?(get_station_location(shift.station_id), Map.get(preference, :location)),
-      date: check_date_preference(preference, shift)
+  defp match_and_score(shift, preference) do
+    expected_station = Map.get(preference, :station_id)
+    actual_station = Atom.to_string(shift.station_id)
+    station_match = expected_station == actual_station
+
+    expected_connector = Map.get(preference, :connector_type)
+    actual_connector = Atom.to_string(shift.connector_type)
+    connector_match = expected_connector == actual_connector
+
+    expected_power = Map.get(preference, :power)
+    actual_power = shift.power_kw
+    power_match = expected_power == actual_power
+
+    location_pref = Map.get(preference, :location)
+    actual_location = get_station_location(shift.station_id)
+    location_match = location_pref == actual_location
+
+    matches = %{
+      station_id: station_match,
+      connector_type: connector_match,
+      power: power_match,
+      location: location_match
     }
+
+    log = [
+      "  🔁 station_id match: #{station_match} (expected: #{expected_station}, got: #{actual_station})",
+      "  🔌 connector_type match: #{connector_match} (expected: #{expected_connector}, got: #{actual_connector})",
+      "  ⚡ power match: #{power_match} (expected: #{expected_power}, got: #{actual_power})",
+      "  📍 location match: #{location_match} (expected to include: #{location_pref || "N/A"}, got: #{actual_location})"
+    ]
+
+    score = Enum.count(Map.values(matches), & &1)
+
+    {score, log, matches}
   end
 
-  defp calculate_single_preference_score(shift, preference) do
-    matches = get_preference_matches(shift, preference)
 
-    matches
-    |> Map.values()
-    |> Enum.count(& &1)
-  end
+  # defp get_preference_matches(shift, preference) do
+  #   %{
+  #     station_id: Map.get(preference, :station_id) == Atom.to_string(shift.station_id),
+  #     connector_type: Map.get(preference, :connector_type) == Atom.to_string(shift.connector_type),
+  #     power: Map.get(preference, :power) == shift.power_kw,
+  #     location: Map.get(preference, :location) && String.contains?(get_station_location(shift.station_id), Map.get(preference, :location)),
+  #     # date: check_date_preference(preference, shift)
+  #   }
+  # end
+
+  # defp calculate_single_preference_score(shift, preference) do
+  #   matches = get_preference_matches(shift, preference)
+
+  #   matches
+  #   |> Map.values()
+  #   |> Enum.count(& &1)
+  # end
 
   defp get_station_location(station_id) do
     case ElixirFastCharge.ChargingStations.ChargingStation.get_location(station_id) do
