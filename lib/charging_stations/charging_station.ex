@@ -116,7 +116,8 @@ defmodule ElixirFastCharge.ChargingStations.ChargingStation do
         power_kw: point.power_kw,
         start_time: shift_params.start_time,
         end_time: shift_params.end_time,
-        expires_at: shift_params.expires_at
+        expires_at: shift_params.expires_at,
+        location: state.location
       }
 
       case ElixirFastCharge.Storage.ShiftAgent.create_shift(shift_data) do
@@ -143,7 +144,8 @@ defmodule ElixirFastCharge.ChargingStations.ChargingStation do
         power_kw: point.power_kw,
         start_time: shift_params.start_time,
         end_time: shift_params.end_time,
-        expires_at: shift_params.expires_at
+        expires_at: shift_params.expires_at,
+        location: state.location
       }
 
       case ElixirFastCharge.Storage.ShiftAgent.create_shift(shift_data) do
