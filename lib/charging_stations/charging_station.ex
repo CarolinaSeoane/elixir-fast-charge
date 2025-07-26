@@ -42,7 +42,7 @@ defmodule ElixirFastCharge.ChargingStations.ChargingStation do
     IO.puts("Charging Station #{station_id} started")
 
     # Registrarse en el Registry estándar
-    case Registry.register(ElixirFastCharge.StationRegistry, station_id, self()) do
+    case Registry.register(ElixirFastCharge.ChargingStations.StationRegistry, station_id, self()) do
       {:ok, _} ->
         IO.puts("✓ Estación #{station_id} registrada en Registry")
       {:error, reason} ->
