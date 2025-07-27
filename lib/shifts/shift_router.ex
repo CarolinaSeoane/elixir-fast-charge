@@ -56,7 +56,6 @@ defmodule ElixirFastCharge.ShiftRouter do
         send_json_response(conn, 400, %{error: "shift_id is required"})
 
       true ->
-                # Verificar que el usuario exista
         case ElixirFastCharge.UserDynamicSupervisor.get_user(user_id) do
           {:ok, _user_pid} ->
             # Verificar que el turno exista y esté activo
@@ -65,28 +64,64 @@ defmodule ElixirFastCharge.ShiftRouter do
                 send_json_response(conn, 404, %{error: "Shift not found"})
 
               shift when shift.status == :active and shift.active == true ->
-                # Verificar que no haya demasiadas pre-reservas pendientes para este turno
-                pending_pre_reservations = ElixirFastCharge.Storage.PreReservationAgent.list_pending_pre_reservations_for_shift(shift_id)
+                case ElixirFastCharge.Storage.PreReservationAgent.create_pre_reservation(user_id, shift_id) do
+                  {:ok, pre_reservation} ->
+                    send_json_response(conn, 201, %{
+                      pre_reservation: pre_reservation,
+                      message: "Pre-reservation created successfully. You have 1 minute to confirm payment."
+                    })
 
-                if length(pending_pre_reservations) >= 5 do # Límite de 5 pre-reservas por turno
-                  send_json_response(conn, 409, %{error: "Too many pending pre-reservations for this shift"})
-                else
-                                    case ElixirFastCharge.Storage.PreReservationAgent.create_pre_reservation(user_id, shift_id) do
-                    {:ok, pre_reservation, :created} ->
-                      send_json_response(conn, 201, %{
-                        pre_reservation: pre_reservation,
-                        message: "Pre-reservation created successfully. You have 2 minutes to confirm payment."
-                      })
+                  {:error, reason} ->
+                    send_json_response(conn, 500, %{error: "Failed to create pre-reservation", reason: inspect(reason)})
+                end
 
-                    {:ok, pre_reservation, :updated} ->
-                      send_json_response(conn, 200, %{
-                        pre_reservation: pre_reservation,
-                        message: "Pre-reservation updated successfully with new shift. You have 2 minutes to confirm payment."
-                      })
+              _shift ->
+                send_json_response(conn, 409, %{error: "Shift is not available for reservation"})
+            end
 
-                    {:error, reason} ->
-                      send_json_response(conn, 500, %{error: "Failed to create pre-reservation", reason: inspect(reason)})
-                  end
+          {:error, :not_found} ->
+            send_json_response(conn, 404, %{error: "User not found"})
+        end
+    end
+  end
+
+  # Actualizar una pre-reserva existente
+  put "/pre-reservations" do
+    pre_reservation_id = conn.body_params["pre_reservation_id"]
+    user_id = conn.body_params["user_id"]
+    shift_id = conn.body_params["shift_id"]
+
+    cond do
+      is_nil(pre_reservation_id) ->
+        send_json_response(conn, 400, %{error: "pre_reservation_id is required"})
+
+      is_nil(user_id) ->
+        send_json_response(conn, 400, %{error: "user_id is required"})
+
+      is_nil(shift_id) ->
+        send_json_response(conn, 400, %{error: "shift_id is required"})
+
+      true ->
+        case ElixirFastCharge.UserDynamicSupervisor.get_user(user_id) do
+          {:ok, _user_pid} ->
+            # Verificar que el turno exista y esté activo
+            case ElixirFastCharge.Storage.ShiftAgent.get_shift(shift_id) do
+              nil ->
+                send_json_response(conn, 404, %{error: "Shift not found"})
+
+              shift when shift.status == :active and shift.active == true ->
+                case ElixirFastCharge.Storage.PreReservationAgent.update_pre_reservation(pre_reservation_id, user_id, shift_id) do
+                  {:ok, pre_reservation} ->
+                    send_json_response(conn, 200, %{
+                      pre_reservation: pre_reservation,
+                      message: "Pre-reservation updated successfully"
+                    })
+
+                  {:error, :not_found} ->
+                    send_json_response(conn, 404, %{error: "Pre-reservation not found"})
+
+                  {:error, reason} ->
+                    send_json_response(conn, 500, %{error: "Failed to update pre-reservation", reason: inspect(reason)})
                 end
 
               _shift ->

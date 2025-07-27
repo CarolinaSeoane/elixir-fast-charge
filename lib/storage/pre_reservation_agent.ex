@@ -7,40 +7,24 @@ defmodule ElixirFastCharge.Storage.PreReservationAgent do
 
   def create_pre_reservation(user_id, shift_id) do
     now = DateTime.utc_now()
-    expires_at = DateTime.add(now, 2 * 60, :second) # 2 minutos
+    expires_at = DateTime.add(now, 1 * 60, :second) # 1 minuto
 
-    Agent.get_and_update(__MODULE__, fn pre_reservations ->
-      # Buscar cualquier pre-reserva pendiente del usuario (independientemente del shift_id)
-      existing = Enum.find(pre_reservations, fn {_id, pr} ->
-        pr.user_id == user_id and pr.status == :pending
-      end)
+    pre_reservation_id = generate_pre_reservation_id()
+    pre_reservation = %{
+      pre_reservation_id: pre_reservation_id,
+      user_id: user_id,
+      shift_id: shift_id,
+      status: :pending,
+      created_at: now,
+      expires_at: expires_at,
+      updated_at: now
+    }
 
-      case existing do
-        nil ->
-          # No existe pre-reserva pendiente, crear una nueva
-          pre_reservation_id = generate_pre_reservation_id()
-          pre_reservation = %{
-            pre_reservation_id: pre_reservation_id,
-            user_id: user_id,
-            shift_id: shift_id,
-            status: :pending,
-            created_at: now,
-            expires_at: expires_at
-          }
-          updated_pre_reservations = Map.put(pre_reservations, pre_reservation_id, pre_reservation)
-          {{:ok, pre_reservation, :created}, updated_pre_reservations}
-
-        {existing_id, existing_pre_reservation} ->
-          # Existe pre-reserva pendiente, actualizarla con el nuevo shift_id
-          updated_pre_reservation = %{existing_pre_reservation |
-            shift_id: shift_id,
-            expires_at: expires_at,
-            updated_at: now
-          }
-          updated_pre_reservations = Map.put(pre_reservations, existing_id, updated_pre_reservation)
-          {{:ok, updated_pre_reservation, :updated}, updated_pre_reservations}
-      end
+    Agent.update(__MODULE__, fn pre_reservations ->
+      Map.put(pre_reservations, pre_reservation_id, pre_reservation)
     end)
+
+    {:ok, pre_reservation}
   end
 
   def get_pre_reservation(pre_reservation_id) do
@@ -156,6 +140,32 @@ defmodule ElixirFastCharge.Storage.PreReservationAgent do
 
   def get_all_pre_reservations do
     Agent.get(__MODULE__, &Map.values(&1))
+  end
+
+  def update_pre_reservation(pre_reservation_id, user_id, shift_id) do
+    now = DateTime.utc_now()
+
+    Agent.get_and_update(__MODULE__, fn pre_reservations ->
+      case Map.get(pre_reservations, pre_reservation_id) do
+        nil ->
+          {{:error, :not_found}, pre_reservations}
+
+        existing_pre_reservation ->
+          # Verificar que la pre-reserva pertenece al usuario
+          if existing_pre_reservation.user_id == user_id do
+            # Actualizar la pre-reserva con el nuevo shift_id
+            updated_pre_reservation = %{existing_pre_reservation |
+              shift_id: shift_id,
+              updated_at: now
+            }
+
+            updated_pre_reservations = Map.put(pre_reservations, pre_reservation_id, updated_pre_reservation)
+            {{:ok, updated_pre_reservation}, updated_pre_reservations}
+          else
+            {{:error, :unauthorized}, pre_reservations}
+          end
+      end
+    end)
   end
 
     defp generate_pre_reservation_id do
