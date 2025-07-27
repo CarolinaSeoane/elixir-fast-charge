@@ -9,9 +9,14 @@ defmodule ElixirFastCharge.UserRouter do
 
     users = users_raw
     |> Enum.map(fn {username, pid} ->
+      # Get notifications for this user
+      notifications = ElixirFastCharge.User.get_notifications(pid)
+
       %{
         username: username,
-        pid: inspect(pid)
+        pid: inspect(pid),
+        notifications: notifications,
+        notifications_count: length(notifications)
       }
     end)
 
@@ -49,6 +54,24 @@ defmodule ElixirFastCharge.UserRouter do
     end
   end
 
+  get "/:username/notifications" do
+    case Registry.lookup(ElixirFastCharge.UserRegistry, username) do
+      [{user_pid, _}] ->
+        notifications = ElixirFastCharge.User.get_notifications(user_pid)
+
+        send_json_response(conn, 200, %{
+          username: username,
+          notifications: notifications,
+          count: length(notifications)
+        })
+
+      [] ->
+        send_json_response(conn, 404, %{
+          error: "User not found"
+        })
+    end
+  end
+
   post "/preferences" do
     case extract_preference_params(conn.body_params) do
       {:ok, preference_data} ->
@@ -70,6 +93,15 @@ defmodule ElixirFastCharge.UserRouter do
       {:error, error_message} ->
         send_json_response(conn, 400, %{error: error_message})
     end
+  end
+
+  get "/preferences" do
+    preferences = ElixirFastCharge.Finder.get_all_preferences()
+
+    send_json_response(conn, 200, %{
+      preferences: preferences,
+      count: length(preferences)
+    })
   end
 
   get "/:username/preferences" do
@@ -105,33 +137,6 @@ defmodule ElixirFastCharge.UserRouter do
         send_json_response(conn, 500, %{
           error: "Failed to retrieve shifts",
           reason: inspect(error)
-        })
-    end
-  end
-
-  get "/preferences" do
-    preferences = ElixirFastCharge.Finder.get_all_preferences()
-
-    send_json_response(conn, 200, %{
-      preferences: preferences,
-      count: length(preferences)
-    })
-  end
-
-  get "/:username/notifications" do
-    case Registry.lookup(ElixirFastCharge.UserRegistry, username) do
-      [{user_pid, _}] ->
-        notifications = ElixirFastCharge.User.get_notifications(user_pid)
-
-        send_json_response(conn, 200, %{
-          username: username,
-          notifications: notifications,
-          count: length(notifications)
-        })
-
-      [] ->
-        send_json_response(conn, 404, %{
-          error: "User not found"
         })
     end
   end
