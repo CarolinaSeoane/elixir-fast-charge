@@ -6,32 +6,39 @@ defmodule ElixirFastCharge.Storage.PreReservationAgent do
   end
 
   def create_pre_reservation(user_id, shift_id) do
-    pre_reservation_id = generate_pre_reservation_id()
     now = DateTime.utc_now()
     expires_at = DateTime.add(now, 2 * 60, :second) # 2 minutos
 
-    pre_reservation = %{
-      pre_reservation_id: pre_reservation_id,
-      user_id: user_id,
-      shift_id: shift_id,
-      status: :pending,
-      created_at: now,
-      expires_at: expires_at
-    }
-
     Agent.get_and_update(__MODULE__, fn pre_reservations ->
-      # Verificar que no haya una pre-reserva activa para este user_id y shift_id
-      existing = Enum.find(Map.values(pre_reservations), fn pr ->
-        pr.user_id == user_id and pr.shift_id == shift_id and pr.status == :pending
+      # Buscar cualquier pre-reserva pendiente del usuario (independientemente del shift_id)
+      existing = Enum.find(pre_reservations, fn {_id, pr} ->
+        pr.user_id == user_id and pr.status == :pending
       end)
 
       case existing do
         nil ->
+          # No existe pre-reserva pendiente, crear una nueva
+          pre_reservation_id = generate_pre_reservation_id()
+          pre_reservation = %{
+            pre_reservation_id: pre_reservation_id,
+            user_id: user_id,
+            shift_id: shift_id,
+            status: :pending,
+            created_at: now,
+            expires_at: expires_at
+          }
           updated_pre_reservations = Map.put(pre_reservations, pre_reservation_id, pre_reservation)
-          {{:ok, pre_reservation}, updated_pre_reservations}
+          {{:ok, pre_reservation, :created}, updated_pre_reservations}
 
-        _existing_pre_reservation ->
-          {{:error, :already_pre_reserved}, pre_reservations}
+        {existing_id, existing_pre_reservation} ->
+          # Existe pre-reserva pendiente, actualizarla con el nuevo shift_id
+          updated_pre_reservation = %{existing_pre_reservation |
+            shift_id: shift_id,
+            expires_at: expires_at,
+            updated_at: now
+          }
+          updated_pre_reservations = Map.put(pre_reservations, existing_id, updated_pre_reservation)
+          {{:ok, updated_pre_reservation, :updated}, updated_pre_reservations}
       end
     end)
   end

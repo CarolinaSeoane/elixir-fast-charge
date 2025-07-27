@@ -13,31 +13,6 @@ defmodule ElixirFastCharge.ShiftRouter do
     })
   end
 
-  get "/recommended" do
-    alias ElixirFastCharge.Shifts.ShiftController
-
-    case conn.query_params["user_id"] do
-      nil ->
-        send_json_response(conn, 400, %{error: "user_id is required"})
-
-      user_id ->
-        case ShiftController.list_active_shifts_for_user(user_id) do
-          {:ok, recommended_shifts, user_preferences} ->
-            send_json_response(conn, 200, %{
-              recommended_shifts: recommended_shifts,
-              count: length(recommended_shifts),
-              user_preferences: user_preferences
-            })
-
-          {:error, :user_not_found} ->
-            send_json_response(conn, 404, %{error: "User not found"})
-
-          {:error, reason} ->
-            send_json_response(conn, 500, %{error: "Failed to get recommendations", reason: inspect(reason)})
-        end
-    end
-  end
-
   get "/inactive" do
     alias ElixirFastCharge.Shifts.ShiftController
 
@@ -96,15 +71,18 @@ defmodule ElixirFastCharge.ShiftRouter do
                 if length(pending_pre_reservations) >= 5 do # Límite de 5 pre-reservas por turno
                   send_json_response(conn, 409, %{error: "Too many pending pre-reservations for this shift"})
                 else
-                  case ElixirFastCharge.Storage.PreReservationAgent.create_pre_reservation(user_id, shift_id) do
-                    {:ok, pre_reservation} ->
+                                    case ElixirFastCharge.Storage.PreReservationAgent.create_pre_reservation(user_id, shift_id) do
+                    {:ok, pre_reservation, :created} ->
                       send_json_response(conn, 201, %{
                         pre_reservation: pre_reservation,
                         message: "Pre-reservation created successfully. You have 2 minutes to confirm payment."
                       })
 
-                    {:error, :already_pre_reserved} ->
-                      send_json_response(conn, 409, %{error: "You already have a pending pre-reservation for this shift"})
+                    {:ok, pre_reservation, :updated} ->
+                      send_json_response(conn, 200, %{
+                        pre_reservation: pre_reservation,
+                        message: "Pre-reservation updated successfully with new shift. You have 2 minutes to confirm payment."
+                      })
 
                     {:error, reason} ->
                       send_json_response(conn, 500, %{error: "Failed to create pre-reservation", reason: inspect(reason)})
