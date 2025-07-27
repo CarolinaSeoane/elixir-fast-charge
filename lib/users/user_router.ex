@@ -9,9 +9,14 @@ defmodule ElixirFastCharge.UserRouter do
 
     users = users_raw
     |> Enum.map(fn {username, pid} ->
+      # Get notifications for this user
+      notifications = ElixirFastCharge.User.get_notifications(pid)
+
       %{
         username: username,
-        pid: inspect(pid)
+        pid: inspect(pid),
+        notifications: notifications,
+        notifications_count: length(notifications)
       }
     end)
 
