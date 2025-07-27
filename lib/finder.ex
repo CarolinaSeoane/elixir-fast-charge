@@ -7,8 +7,6 @@ defmodule ElixirFastCharge.Finder do
 
   @impl true
   def init(:ok) do
-    IO.puts("Finder supervisor started")
-
     children = [
       {ElixirFastCharge.Preferences, %{}}
     ]
@@ -69,7 +67,7 @@ defmodule ElixirFastCharge.Finder do
     # system fields, not criteria. Must be ignored
     filter_fields = [:alert, :preference_id, :timestamp, :username]
 
-    Enum.all?(preference, fn {key, value} ->
+    result = Enum.all?(preference, fn {key, value} ->
       if key in filter_fields do
         # Skip system fields
         true
@@ -80,10 +78,14 @@ defmodule ElixirFastCharge.Finder do
         normalized_shift_value = if is_atom(shift_value), do: Atom.to_string(shift_value), else: shift_value
         normalized_pref_value = if is_atom(value), do: Atom.to_string(value), else: value
 
+        match_result = normalized_shift_value == normalized_pref_value
+
         # Criteria field must match the shift
-        normalized_shift_value == normalized_pref_value
+        match_result
       end
     end)
+
+    result
   end
 
   defp notify_user(preference, shift) do
