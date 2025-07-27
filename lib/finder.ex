@@ -74,8 +74,14 @@ defmodule ElixirFastCharge.Finder do
         # Skip system fields
         true
       else
+        shift_value = Map.get(shift, key)
+
+        # Normalize both values for comparison (convert atoms to strings)
+        normalized_shift_value = if is_atom(shift_value), do: Atom.to_string(shift_value), else: shift_value
+        normalized_pref_value = if is_atom(value), do: Atom.to_string(value), else: value
+
         # Criteria field must match the shift
-        Map.get(shift, key) == value
+        normalized_shift_value == normalized_pref_value
       end
     end)
   end
