@@ -72,6 +72,15 @@ defmodule ElixirFastCharge.UserRouter do
     end
   end
 
+  get "/preferences" do
+    preferences = ElixirFastCharge.Finder.get_all_preferences()
+
+    send_json_response(conn, 200, %{
+      preferences: preferences,
+      count: length(preferences)
+    })
+  end
+
   get "/:username/preferences" do
       user_preferences = ElixirFastCharge.Preferences.get_preferences_by_user(username)
       send_json_response(conn, 200, %{
@@ -105,33 +114,6 @@ defmodule ElixirFastCharge.UserRouter do
         send_json_response(conn, 500, %{
           error: "Failed to retrieve shifts",
           reason: inspect(error)
-        })
-    end
-  end
-
-  get "/preferences" do
-    preferences = ElixirFastCharge.Finder.get_all_preferences()
-
-    send_json_response(conn, 200, %{
-      preferences: preferences,
-      count: length(preferences)
-    })
-  end
-
-  get "/:username/notifications" do
-    case Registry.lookup(ElixirFastCharge.UserRegistry, username) do
-      [{user_pid, _}] ->
-        notifications = ElixirFastCharge.User.get_notifications(user_pid)
-
-        send_json_response(conn, 200, %{
-          username: username,
-          notifications: notifications,
-          count: length(notifications)
-        })
-
-      [] ->
-        send_json_response(conn, 404, %{
-          error: "User not found"
         })
     end
   end
