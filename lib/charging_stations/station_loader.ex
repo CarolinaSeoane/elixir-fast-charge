@@ -23,9 +23,10 @@ defmodule ElixirFastCharge.ChargingStations.StationLoader do
     case read_default_stations_config() do
       {:ok, stations} ->
         Enum.each(stations, fn station ->
-          station_id = String.to_atom(station["station_id"])
           station_data = %{
-            available: station["available"],
+            station_id: station["station_id"],
+            name: Map.get(station, "name", "Estación #{station["station_id"]}"),
+            status: if(station["available"], do: :active, else: :inactive),
             location: %{
               lat: station["location"]["lat"],
               lng: station["location"]["lng"],
@@ -40,10 +41,10 @@ defmodule ElixirFastCharge.ChargingStations.StationLoader do
               }
             end)
           }
-          case ElixirFastCharge.ChargingStationSupervisor.start_charging_station(station_id, station_data) do
+          case ElixirFastCharge.DistributedChargingStationManager.create_station(station_data) do
             {:ok, _pid} ->
-              IO.puts("✓ Estación #{station["station_id"]} cargada con #{length(station["charging_points"])} puntos de carga")
-            {:error, {:already_started, _pid}} ->
+              IO.puts("✓ Estación #{station["station_id"]} cargada con #{length(station["charging_points"])} puntos de carga (distribuida)")
+            {:error, :station_already_exists} ->
               IO.puts("⚠ Estación #{station["station_id"]} ya estaba iniciada")
             {:error, reason} ->
               IO.puts("✗ Error cargando estación #{station["station_id"]}: #{inspect(reason)}")

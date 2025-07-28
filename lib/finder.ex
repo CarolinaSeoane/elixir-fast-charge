@@ -1,104 +1,98 @@
 defmodule ElixirFastCharge.Finder do
-  use Supervisor
+  use GenServer
 
   def start_link(_opts) do
-    Supervisor.start_link(__MODULE__, :ok, name: __MODULE__)
+    GenServer.start_link(__MODULE__, :ok, name: __MODULE__)
   end
 
   @impl true
   def init(:ok) do
-    children = [
-      {ElixirFastCharge.Preferences, %{}}
-    ]
-
-    Supervisor.init(children, strategy: :one_for_one)
+    IO.puts("Finder distribuido iniciado")
+    {:ok, %{}}
   end
 
+  # API Functions
+
   def add_preference(preference_data) do
-    ElixirFastCharge.Preferences.add_preference(preference_data)
+    ElixirFastCharge.DistributedPreferenceManager.create_preference(preference_data)
   end
 
   def get_all_preferences do
-    ElixirFastCharge.Preferences.get_all_preferences()
+    ElixirFastCharge.DistributedPreferenceManager.list_all_preferences()
   end
 
-  def update_preference_alert(username, preference_id, alert_status) do
-    ElixirFastCharge.Preferences.update_preference_alert(username, preference_id, alert_status)
+  def update_preference_alert(preference_id, alert_status) do
+    ElixirFastCharge.DistributedPreferenceManager.update_preference_alert(preference_id, alert_status)
   end
 
   def list_all_stations do
-    ElixirFastCharge.ChargingStations.StationRegistry.list_stations()
-    |> Enum.to_list()
+    ElixirFastCharge.DistributedChargingStationManager.list_all_stations()
   end
 
   def find_station(station_id) do
-    case ElixirFastCharge.ChargingStations.StationRegistry.get_station(station_id) do
-      nil -> {:error, :not_found}
-      pid -> {:ok, pid}
-    end
+    ElixirFastCharge.DistributedChargingStationManager.get_station(station_id)
   end
 
   def send_alerts(shift) do
-    preferences_with_alerts = get_preferences_with_alerts()
+    # Usar el sistema distribuido para encontrar usuarios a notificar
+    users_to_notify = ElixirFastCharge.DistributedPreferenceManager.find_users_to_notify(shift)
 
-    # Find preferences that match this shift
-    matching_preferences = find_matching_preferences(preferences_with_alerts, shift)
-
-    Enum.each(matching_preferences, fn preference ->
-      notify_user(preference, shift)
+    # Notificar a cada usuario
+    Enum.each(users_to_notify, fn user_info ->
+      notify_user(user_info, shift)
     end)
 
-    # Return count
-    length(matching_preferences)
+    # Retornar conteo
+    length(users_to_notify)
   end
 
-  defp get_preferences_with_alerts do
-    get_all_preferences()
-    |> Enum.filter(fn pref -> Map.get(pref, :alert) == true end)
+  def find_matching_preferences_for_shift(shift) do
+    ElixirFastCharge.DistributedPreferenceManager.find_matching_preferences_for_shift(shift)
   end
 
-  defp find_matching_preferences(preferences, shift) do
-    Enum.filter(preferences, fn preference ->
-      preference_matches_shift?(preference, shift)
-    end)
-  end
+  # Private Functions
 
-  defp preference_matches_shift?(preference, shift) do
-    # system fields, not criteria. Must be ignored
-    filter_fields = [:alert, :preference_id, :timestamp, :username]
+  defp notify_user(user_info, shift) do
+    username = user_info.username
 
-    result = Enum.all?(preference, fn {key, value} ->
-      if key in filter_fields do
-        # Skip system fields
-        true
-      else
-        shift_value = Map.get(shift, key)
+    case ElixirFastCharge.DistributedUserManager.get_user(username) do
+      {:ok, user} ->
+        notification = build_notification_message(shift, user_info)
 
-        # Normalize both values for comparison (convert atoms to strings)
-        normalized_shift_value = if is_atom(shift_value), do: Atom.to_string(shift_value), else: shift_value
-        normalized_pref_value = if is_atom(value), do: Atom.to_string(value), else: value
+        # En un sistema real, aquí enviarías email, SMS, push notification, etc.
+        # Por ahora solo loggeamos
+        IO.puts("🔔 ALERTA enviada a #{username}: #{notification}")
 
-        match_result = normalized_shift_value == normalized_pref_value
+        # Opcional: También podrías almacenar la notificación en el sistema
+        store_notification(username, notification)
 
-        # Criteria field must match the shift
-        match_result
-      end
-    end)
+        {:ok, :sent}
 
-    result
-  end
-
-  defp notify_user(preference, shift) do
-    username = Map.get(preference, :username)
-    case Registry.lookup(ElixirFastCharge.UserRegistry, username) do
-      [{user_pid, _}] ->
-        notification = "New shift available! Station: #{shift.station_id}, Point: #{shift.point_id}, Time: #{shift.start_time} - #{shift.end_time}"
-        ElixirFastCharge.User.send_notification(user_pid, notification)
-        IO.puts("ALERT sent to #{username}")
-
-      [] ->
-        IO.puts("User #{username} not found - notification not sent")
+      {:error, :not_found} ->
+        IO.puts("Usuario #{username} no encontrado - notificación no enviada")
+        {:error, :user_not_found}
     end
   end
 
+  defp build_notification_message(shift, user_info) do
+    "¡Nuevo turno disponible con #{user_info.match_percentage}% de coincidencia! " <>
+    "Estación: #{shift.station_id}, " <>
+    "Punto: #{shift.point_id}, " <>
+    "Hora: #{format_datetime(shift.start_time)} - #{format_datetime(shift.end_time)}, " <>
+    "Potencia: #{shift.power_kw}kW, " <>
+    "Conector: #{shift.connector_type}"
+  end
+
+  defp format_datetime(datetime) do
+    datetime
+    |> DateTime.to_naive()
+    |> NaiveDateTime.to_string()
+    |> String.slice(0, 16)  # YYYY-MM-DD HH:MM
+  end
+
+  defp store_notification(username, message) do
+    # En un sistema real, aquí almacenarías la notificación en una base de datos
+    # Por ahora solo loggeamos que se almacenó
+    IO.puts("Notificación almacenada para #{username}")
+  end
 end
