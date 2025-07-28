@@ -15,6 +15,9 @@ defmodule ElixirFastCharge.MainRouter do
 
   forward "/shifts", to: ElixirFastCharge.ShiftRouter
 
+  forward "/cluster", to: ElixirFastCharge.ClusterRouter
+  forward "/monitoring", to: ElixirFastCharge.Monitoring.DashboardRouter
+
   match _ do
     send_json_response(conn, 404, %{
       error: "Route not found"

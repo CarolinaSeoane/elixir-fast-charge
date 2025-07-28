@@ -5,70 +5,55 @@ defmodule ElixirFastCharge.UserRouter do
   plug :dispatch
 
   get "/" do
-    users_raw = ElixirFastCharge.UserDynamicSupervisor.list_users()
-
-    users = users_raw
-    |> Enum.map(fn {username, pid} ->
-      # Get notifications for this user
-      notifications = ElixirFastCharge.User.get_notifications(pid)
-
-      %{
-        username: username,
-        pid: inspect(pid),
-        notifications: notifications,
-        notifications_count: length(notifications)
-      }
-    end)
+    users = ElixirFastCharge.DistributedUserManager.list_all_users()
 
     send_json_response(conn, 200, %{
       users: users,
-      count: length(users)
+      count: length(users),
+      cluster_info: %{
+        node: Node.self(),
+        distributed: true
+      }
     })
   end
 
   post "/sign-up" do
     case extract_signup_params(conn.body_params) do
       {:ok, username, password} ->
-        case ElixirFastCharge.UserDynamicSupervisor.create_user(username, password) do
+        case ElixirFastCharge.DistributedUserManager.create_user(username, password) do
           {:ok, user_pid} ->
             send_json_response(conn, 201, %{
               message: "User created successfully",
               username: username,
-              user_pid: inspect(user_pid)
+              user_pid: inspect(user_pid),
+              cluster_info: %{
+                node: Node.self(),
+                distributed: true
+              }
             })
 
           {:error, :username_taken} ->
             send_json_response(conn, 400, %{
-              error: "Username taken"
+              error: "Username is already taken",
+              cluster_info: %{
+                node: Node.self(),
+                distributed: true
+              }
             })
 
           {:error, reason} ->
             send_json_response(conn, 500, %{
               error: "Failed to create user",
-              reason: inspect(reason)
+              reason: inspect(reason),
+              cluster_info: %{
+                node: Node.self(),
+                distributed: true
+              }
             })
         end
 
       {:error, error_message} ->
         send_json_response(conn, 400, %{error: error_message})
-    end
-  end
-
-  get "/:username/notifications" do
-    case Registry.lookup(ElixirFastCharge.UserRegistry, username) do
-      [{user_pid, _}] ->
-        notifications = ElixirFastCharge.User.get_notifications(user_pid)
-
-        send_json_response(conn, 200, %{
-          username: username,
-          notifications: notifications,
-          count: length(notifications)
-        })
-
-      [] ->
-        send_json_response(conn, 404, %{
-          error: "User not found"
-        })
     end
   end
 
@@ -95,6 +80,15 @@ defmodule ElixirFastCharge.UserRouter do
     end
   end
 
+  get "/preferences" do
+    preferences = ElixirFastCharge.Finder.get_all_preferences()
+
+    send_json_response(conn, 200, %{
+      preferences: preferences,
+      count: length(preferences)
+    })
+  end
+
   get "/:username/preferences" do
       user_preferences = ElixirFastCharge.Preferences.get_preferences_by_user(username)
       send_json_response(conn, 200, %{
@@ -106,22 +100,32 @@ defmodule ElixirFastCharge.UserRouter do
   get "/:username/shifts" do
     try do
       user_preferences = ElixirFastCharge.Preferences.get_preferences_by_user(username)
-      active_shifts = ElixirFastCharge.Storage.ShiftAgent.list_active_shifts()
+      # active_shifts = ElixirFastCharge.DistributedShiftManager.list_active_shifts()
+      active_shifts = ElixirFastCharge.DistributedShiftManager.list_all_shifts()
 
-      # Para cada turno, contar cuántas preferencias lo matchean al 100%
-      shifts_with_match_count = active_shifts
-      |> Enum.map(fn shift ->
-        matching_preferences_count = count_matching_preferences(shift, user_preferences)
+      IO.inspect(active_shifts, label: "Active shifts")
 
-        shift
-        |> Map.put(:matching_preferences_count, matching_preferences_count)
-      end)
-      |> Enum.sort_by(& &1.matching_preferences_count, :desc)
+      # Calcular score para cada turno y ordenar
+      shifts_with_scores = active_shifts
+      # |> Enum.map(fn shift ->
+      #   preference_details = calculate_preference_details(shift, user_preferences)
+      #   total_score = Enum.sum(Enum.map(preference_details, & &1.score))
+
+      #   shift
+      #   |> Map.put(:preference_score, total_score)
+      #   |> Map.put(:preference_details, preference_details)
+      # end)
+      # |> Enum.sort_by(& &1.preference_score, :desc)
 
       send_json_response(conn, 200, %{
-        shifts: shifts_with_match_count,
+        shifts: shifts_with_scores,
+        count: length(shifts_with_scores),
         username: username,
-        preferences_count: length(user_preferences)
+        preferences_count: length(user_preferences),
+        cluster_info: %{
+          node: Node.self(),
+          distributed: true
+        }
       })
     rescue
       error ->
@@ -160,10 +164,84 @@ defmodule ElixirFastCharge.UserRouter do
     end
   end
 
+  # Obtener información de un usuario específico
+  get "/:username/info" do
+    case ElixirFastCharge.DistributedUserManager.get_user_info(username) do
+      {:ok, user_info} ->
+        send_json_response(conn, 200, %{
+          user_info: user_info,
+          cluster_info: %{
+            node: Node.self(),
+            distributed: true
+          }
+        })
+
+      {:error, :not_found} ->
+        send_json_response(conn, 404, %{
+          error: "User not found",
+          username: username
+        })
+    end
+  end
+
+  # Estadísticas del cluster de usuarios
+  get "/cluster/stats" do
+    stats = ElixirFastCharge.DistributedUserManager.get_cluster_stats()
+
+    send_json_response(conn, 200, %{
+      cluster_stats: stats,
+      timestamp: DateTime.utc_now()
+    })
+  end
+
+  # Salud del cluster de usuarios
+  get "/cluster/health" do
+    health = ElixirFastCharge.DistributedUserManager.cluster_health()
+
+    send_json_response(conn, 200, health)
+  end
+
+  # Autenticar usuario (nuevo endpoint)
+  post "/authenticate" do
+    case extract_auth_params(conn.body_params) do
+      {:ok, username, password} ->
+        case ElixirFastCharge.DistributedUserManager.authenticate_user(username, password) do
+          {:ok, :authenticated} ->
+            send_json_response(conn, 200, %{
+              message: "Authentication successful",
+              username: username,
+              cluster_info: %{
+                node: Node.self(),
+                distributed: true
+              }
+            })
+
+          {:error, :invalid_password} ->
+            send_json_response(conn, 401, %{
+              error: "Invalid password",
+              username: username
+            })
+
+          {:error, :user_not_found} ->
+            send_json_response(conn, 404, %{
+              error: "User not found",
+              username: username
+            })
+        end
+
+      {:error, error_message} ->
+        send_json_response(conn, 400, %{error: error_message})
+    end
+  end
+
   get "/health" do
     send_json_response(conn, 200, %{
       status: "ok",
-      timestamp: DateTime.utc_now()
+      timestamp: DateTime.utc_now(),
+      cluster_info: %{
+        node: Node.self(),
+        distributed: true
+      }
     })
   end
 
@@ -193,37 +271,71 @@ defmodule ElixirFastCharge.UserRouter do
           |> Enum.map(fn {key, value} -> {String.to_atom(key), value} end)
           |> Enum.into(%{})
           |> Map.put(:alert, false)
+        IO.puts("preference_data: #{inspect(preference_data)}")
         {:ok, preference_data}
       _ ->
         {:error, "Invalid preference data"}
     end
   end
 
-  defp count_matching_preferences(shift, user_preferences) do
-    # Contar cuántas preferencias matchean al 100% con este turno
-    Enum.count(user_preferences, fn preference ->
-      preference_matches_shift_completely?(preference, shift)
-    end)
+  defp calculate_preference_details(shift, user_preferences) do
+    if Enum.empty?(user_preferences) do
+      []
+    else
+      user_preferences
+      |> Enum.with_index()
+      |> Enum.map(fn {preference, index} ->
+        score = calculate_single_preference_score(shift, preference)
+        matches = get_preference_matches(shift, preference)
+
+        %{
+          preference_id: index,
+          score: score,
+          matches: matches,
+          preference_data: preference
+        }
+      end)
+    end
   end
 
-  defp preference_matches_shift_completely?(preference, shift) do
-    system_fields = [:alert, :preference_id, :timestamp, :username]
+  defp get_preference_matches(shift, preference) do
+    %{
+      station_id: Map.get(preference, :station_id) == Atom.to_string(shift.station_id),
+      connector_type: Map.get(preference, :tipo_de_conector) == Atom.to_string(shift.connector_type),
+      power: Map.get(preference, :potencia) == shift.power_kw,
+      location: Map.get(preference, :location) && String.contains?(get_station_location(shift.station_id), Map.get(preference, :location)),
+      date: check_date_preference(preference, shift)
+    }
+  end
 
-    # Verificar que todos los campos de la preferencia (excepto los del sistema) coincidan con el turno
-    result = Enum.all?(preference, fn {key, value} ->
-      if key in system_fields do
-        true
-      else
-        shift_value = Map.get(shift, key)
+  defp calculate_single_preference_score(shift, preference) do
+    matches = get_preference_matches(shift, preference)
 
-        # Convertir atoms a strings si es necesario para comparación
-        normalized_shift_value = if is_atom(shift_value), do: Atom.to_string(shift_value), else: shift_value
-        normalized_pref_value = if is_atom(value), do: Atom.to_string(value), else: value
-        match_result = normalized_shift_value == normalized_pref_value
-        match_result
-      end
-    end)
-    result
+    matches
+    |> Map.values()
+    |> Enum.count(& &1)
+  end
+
+  defp get_station_location(station_id) do
+    case ElixirFastCharge.ChargingStations.ChargingStation.get_location(station_id) do
+      %{address: address} -> address
+      _ -> ""
+    end
+  rescue
+    _ -> ""
+  end
+
+  defp check_date_preference(preference, shift) do
+    case Map.get(preference, :fecha) do
+      nil -> false
+      fecha_str ->
+        case Date.from_iso8601(fecha_str) do
+          {:ok, fecha_preferencia} ->
+            shift_date = DateTime.to_date(shift.start_time)
+            Date.compare(fecha_preferencia, shift_date) == :eq
+          _ -> false
+        end
+    end
   end
 
   defp extract_alert_params(body_params) do
@@ -237,6 +349,20 @@ defmodule ElixirFastCharge.UserRouter do
 
       _ ->
         {:error, "username, preference_id, and alert are required"}
+    end
+  end
+
+  defp extract_auth_params(body_params) do
+    case body_params do
+      %{"username" => username, "password" => password}
+        when is_binary(username) and is_binary(password) ->
+        {:ok, username, password}
+
+      %{"username" => _, "password" => _} ->
+        {:error, "username and password must be strings"}
+
+      _ ->
+        {:error, "username and password are required"}
     end
   end
 
