@@ -90,18 +90,20 @@ defmodule ElixirFastCharge.Storage.PreReservationAgent do
     end)
   end
 
-  def list_pending_pre_reservations_for_user(user_id) do
-    Agent.get(__MODULE__, fn pre_reservations ->
-      now = DateTime.utc_now()
-
-      pre_reservations
+  def list_confirmed_pre_reservations_for_user(user_id) do
+    result = Agent.get(__MODULE__, fn pre_reservations ->
+      filtered_result = pre_reservations
       |> Map.values()
       |> Enum.filter(fn pr ->
-        pr.user_id == user_id and
-        pr.status == :pending and
-        DateTime.compare(now, pr.expires_at) == :lt
+        user_match = pr.user_id == user_id
+        status_match = pr.status == :confirmed
+        overall_match = user_match and status_match
+        overall_match
       end)
+      filtered_result
     end)
+
+    result
   end
 
   def expire_old_pre_reservations do

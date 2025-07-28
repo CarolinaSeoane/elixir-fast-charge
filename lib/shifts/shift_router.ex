@@ -151,8 +151,18 @@ defmodule ElixirFastCharge.ShiftRouter do
             send_json_response(conn, 404, %{error: "Shift not found"})
 
           {:error, :shift_not_available} ->
-            # El turno ya fue tomado por otro usuario
-            send_json_response(conn, 409, %{error: "Shift is no longer available"})
+            # turno fue tomado por otro usuario
+            case ElixirFastCharge.Storage.PreReservationAgent.cancel_pre_reservation(pre_reservation_id) do
+              {:ok, cancelled_pre_reservation} ->
+                send_json_response(conn, 409, %{
+                  error: "Shift is no longer available",
+                  message: "Pre-reservation has been cancelled automatically",
+                  pre_reservation: cancelled_pre_reservation
+                })
+
+              {:error, _cancel_reason} ->
+                send_json_response(conn, 409, %{error: "Shift is no longer available"})
+            end
 
           {:error, reason} ->
             send_json_response(conn, 500, %{error: "Failed to reserve shift", reason: inspect(reason)})
@@ -217,7 +227,7 @@ defmodule ElixirFastCharge.ShiftRouter do
 
   # Listar pre-reservas de un usuario
   get "/pre-reservations/user/:user_id" do
-    pre_reservations = ElixirFastCharge.Storage.PreReservationAgent.list_pending_pre_reservations_for_user(user_id)
+    pre_reservations = ElixirFastCharge.Storage.PreReservationAgent.list_confirmed_pre_reservations_for_user(user_id)
 
     send_json_response(conn, 200, %{
       pre_reservations: pre_reservations,
