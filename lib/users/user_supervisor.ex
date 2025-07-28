@@ -42,15 +42,6 @@ defmodule ElixirFastCharge.UserDynamicSupervisor do
     |> Enum.into(%{})
   end
 
-  def delete_user(username) do
-    case get_user(username) do
-      {:ok, user_pid} ->
-        DynamicSupervisor.terminate_child(__MODULE__, user_pid)
-      {:error, :not_found} ->
-        {:error, :user_not_found}
-    end
-  end
-
   def start_child(foo, bar, baz) do
     spec = %{id: ElixirFastCharge.User, start: {ElixirFastCharge.User, :start_link, [foo, bar, baz]}}
     DynamicSupervisor.start_child(__MODULE__, spec)

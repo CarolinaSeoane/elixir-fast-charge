@@ -122,36 +122,6 @@ defmodule ElixirFastCharge.StationRouter do
     })
   end
 
-  get "/shifts/:shift_id" do
-    case ElixirFastCharge.Storage.ShiftAgent.get_shift(shift_id) do
-      nil ->
-        send_json_response(conn, 404, %{error: "Shift not found"})
-      shift ->
-        send_json_response(conn, 200, shift)
-    end
-  end
-
-  post "/shifts/:shift_id/reserve" do
-    case extract_reserve_params(conn.body_params) do
-      {:ok, user_id} ->
-        case ElixirFastCharge.Storage.ShiftAgent.reserve_shift(shift_id, user_id) do
-          {:ok, reserved_shift} ->
-            send_json_response(conn, 200, %{
-              message: "Shift reserved successfully",
-              shift: reserved_shift
-            })
-          {:error, :shift_not_found} ->
-            send_json_response(conn, 404, %{error: "Shift not found"})
-          {:error, :shift_not_available} ->
-            send_json_response(conn, 400, %{error: "Shift not available"})
-          {:error, reason} ->
-            send_json_response(conn, 500, %{error: "Failed to reserve shift", reason: inspect(reason)})
-        end
-      {:error, error_message} ->
-        send_json_response(conn, 400, %{error: error_message})
-    end
-  end
-
   match _ do
     send_json_response(conn, 404, %{error: "Station route not found"})
   end
@@ -174,15 +144,6 @@ defmodule ElixirFastCharge.StationRouter do
         end
       _ ->
         {:error, "start_time, end_time, and expires_at are required"}
-    end
-  end
-
-  defp extract_reserve_params(body_params) do
-    case body_params do
-      %{"user_id" => user_id} when is_binary(user_id) ->
-        {:ok, user_id}
-      _ ->
-        {:error, "user_id is required"}
     end
   end
 

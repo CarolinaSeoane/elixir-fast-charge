@@ -4,7 +4,8 @@ defmodule ElixirFastCharge.Application do
 
     @impl true
   def start(_type, _args) do
-          children = [
+    port = String.to_integer(System.get_env("PORT") || "5014")
+    children = [
         {Registry, keys: :unique, name: ElixirFastCharge.UserRegistry},
         {Registry, keys: :unique, name: ElixirFastCharge.ChargingStations.StationRegistry},
         {ElixirFastCharge.Finder, []},
@@ -13,7 +14,7 @@ defmodule ElixirFastCharge.Application do
         {ElixirFastCharge.UserDynamicSupervisor, []},
         {DynamicSupervisor, strategy: :one_for_one, name: ElixirFastCharge.ChargingStationSupervisor},
         {ElixirFastCharge.ChargingStations.StationLoader, []},
-        {Plug.Cowboy, scheme: :http, plug: ElixirFastCharge.MainRouter, options: [port: 5014, ref: :http_server]}
+        {Plug.Cowboy, scheme: :http, plug: ElixirFastCharge.MainRouter, options: [port: port, ref: :http_server]}
       ]
 
     opts = [strategy: :one_for_one, name: ElixirFastCharge.Supervisor]
@@ -22,7 +23,6 @@ defmodule ElixirFastCharge.Application do
 
   @impl true
   def stop(_state) do
-    IO.puts("Cerrando servidor HTTP en puerto 5014...")
     :cowboy.stop_listener(:http_server)
     :ok
   end

@@ -95,15 +95,6 @@ defmodule ElixirFastCharge.UserRouter do
     end
   end
 
-  get "/preferences" do
-    preferences = ElixirFastCharge.Finder.get_all_preferences()
-
-    send_json_response(conn, 200, %{
-      preferences: preferences,
-      count: length(preferences)
-    })
-  end
-
   get "/:username/preferences" do
       user_preferences = ElixirFastCharge.Preferences.get_preferences_by_user(username)
       send_json_response(conn, 200, %{

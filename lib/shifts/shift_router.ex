@@ -13,17 +13,6 @@ defmodule ElixirFastCharge.ShiftRouter do
     })
   end
 
-  get "/inactive" do
-    alias ElixirFastCharge.Shifts.ShiftController
-
-    shifts = ShiftController.list_inactive_shifts()
-
-    send_json_response(conn, 200, %{
-      inactive_shifts: shifts,
-      count: length(shifts)
-    })
-  end
-
   get "/all" do
     shifts = ElixirFastCharge.Storage.ShiftAgent.get_all_shifts()
 
@@ -31,14 +20,6 @@ defmodule ElixirFastCharge.ShiftRouter do
       all_shifts: Map.values(shifts),
       count: map_size(shifts)
     })
-  end
-
-  get "/count" do
-    alias ElixirFastCharge.Shifts.ShiftController
-
-    counts = ShiftController.get_shift_counts()
-
-    send_json_response(conn, 200, counts)
   end
 
   # === PRE-RESERVAS ===
@@ -209,12 +190,6 @@ defmodule ElixirFastCharge.ShiftRouter do
     })
   end
 
-  # Obtener estadísticas de pre-reservas
-  get "/pre-reservations/stats/count" do
-    counts = ElixirFastCharge.Storage.PreReservationAgent.count_pre_reservations()
-    send_json_response(conn, 200, %{counts: counts})
-  end
-
   # Limpiar pre-reservas expiradas (endpoint administrativo)
   post "/pre-reservations/cleanup/expired" do
     expired_count = ElixirFastCharge.Storage.PreReservationAgent.expire_old_pre_reservations()
@@ -248,48 +223,6 @@ defmodule ElixirFastCharge.ShiftRouter do
 
   # === OPERACIONES CON TURNOS ESPECÍFICOS ===
 
-  get "/:shift_id" do
-    case ElixirFastCharge.Storage.ShiftAgent.get_shift(shift_id) do
-      nil ->
-        send_json_response(conn, 404, %{error: "Shift not found"})
-      shift ->
-        send_json_response(conn, 200, shift)
-    end
-  end
-
-  post "/:shift_id/reserve" do
-    case extract_reserve_params(conn.body_params) do
-      {:ok, user_id} ->
-        # Verificar si hay pre-reservas pendientes para este turno
-        pending_pre_reservations = ElixirFastCharge.Storage.PreReservationAgent.list_pending_pre_reservations_for_shift(shift_id)
-
-        if length(pending_pre_reservations) > 0 do
-          send_json_response(conn, 409, %{
-            error: "This shift has pending pre-reservations. Direct reservation not allowed.",
-            pending_pre_reservations_count: length(pending_pre_reservations),
-            message: "Please use the pre-reservation flow: POST /shifts/pre-reservations"
-          })
-        else
-          case ElixirFastCharge.Storage.ShiftAgent.reserve_shift(shift_id, user_id) do
-            {:ok, reserved_shift} ->
-              send_json_response(conn, 200, %{
-                message: "Shift reserved successfully (direct reservation)",
-                shift: reserved_shift,
-                warning: "Consider using pre-reservations for better experience: POST /shifts/pre-reservations"
-              })
-            {:error, :shift_not_found} ->
-              send_json_response(conn, 404, %{error: "Shift not found"})
-            {:error, :shift_not_available} ->
-              send_json_response(conn, 400, %{error: "Shift not available"})
-            {:error, reason} ->
-              send_json_response(conn, 500, %{error: "Failed to reserve shift", reason: inspect(reason)})
-          end
-        end
-      {:error, error_message} ->
-        send_json_response(conn, 400, %{error: error_message})
-    end
-  end
-
   put "/:shift_id/activate" do
     case ElixirFastCharge.Storage.ShiftAgent.set_shift_active(shift_id, true) do
       {:ok, updated_shift} ->
@@ -300,17 +233,6 @@ defmodule ElixirFastCharge.ShiftRouter do
       {:error, :shift_not_found} ->
         send_json_response(conn, 404, %{error: "Shift not found"})
     end
-  end
-
-  # Obtener pre-reservas pendientes para un turno
-  get "/:shift_id/pre-reservations" do
-    pending_pre_reservations = ElixirFastCharge.Storage.PreReservationAgent.list_pending_pre_reservations_for_shift(shift_id)
-
-    send_json_response(conn, 200, %{
-      shift_id: shift_id,
-      pending_pre_reservations: pending_pre_reservations,
-      count: length(pending_pre_reservations)
-    })
   end
 
   put "/:shift_id/deactivate" do
@@ -340,15 +262,6 @@ defmodule ElixirFastCharge.ShiftRouter do
   end
 
   # === HELPERS ===
-
-  defp extract_reserve_params(body_params) do
-    case body_params do
-      %{"user_id" => user_id} when is_binary(user_id) ->
-        {:ok, user_id}
-      _ ->
-        {:error, "user_id is required"}
-    end
-  end
 
   defp send_json_response(conn, status, data) do
     conn

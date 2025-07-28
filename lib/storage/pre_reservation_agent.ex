@@ -125,21 +125,6 @@ defmodule ElixirFastCharge.Storage.PreReservationAgent do
     end)
   end
 
-  def count_pre_reservations do
-    Agent.get(__MODULE__, fn pre_reservations ->
-      all_count = map_size(pre_reservations)
-
-      counts_by_status =
-        pre_reservations
-        |> Map.values()
-        |> Enum.group_by(& &1.status)
-        |> Enum.map(fn {status, list} -> {status, length(list)} end)
-        |> Map.new()
-
-      Map.put(counts_by_status, :total, all_count)
-    end)
-  end
-
   def get_all_pre_reservations do
     Agent.get(__MODULE__, &Map.values(&1))
   end
