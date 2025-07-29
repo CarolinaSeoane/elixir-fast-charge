@@ -2,7 +2,11 @@ defmodule ElixirFastCharge.Preferences do
   use Agent
 
   def start_link(initial_state \\ %{}) do
-    Agent.start_link(fn -> initial_state end, name: __MODULE__)
+    Agent.start_link(fn -> initial_state end, name: via_tuple())
+  end
+
+  defp via_tuple do
+    {:via, Horde.Registry, {ElixirFastCharge.DistributedStorageRegistry, __MODULE__}}
   end
 
   defp generate_preference_id do
@@ -16,20 +20,20 @@ defmodule ElixirFastCharge.Preferences do
       |> Map.put_new(:timestamp, DateTime.utc_now())
       |> Map.put(:preference_id, preference_id)
 
-    Agent.update(__MODULE__, fn preferences ->
+    Agent.update(via_tuple(), fn preferences ->
       Map.put(preferences, preference_id, preference)
     end)
     preference
   end
 
   def get_all_preferences do
-    Agent.get(__MODULE__, fn preferences ->
+    Agent.get(via_tuple(), fn preferences ->
       Map.values(preferences)
     end)
   end
 
   def get_preferences_by_user(usuario) do
-    Agent.get(__MODULE__, fn preferences ->
+    Agent.get(via_tuple(), fn preferences ->
       preferences
       |> Map.values()
       |> Enum.filter(fn pref -> Map.get(pref, :username) == usuario end)
@@ -37,14 +41,14 @@ defmodule ElixirFastCharge.Preferences do
   end
 
   def delete_preferences_by_user(usuario) do
-    Agent.update(__MODULE__, fn preferences ->
+    Agent.update(via_tuple(), fn preferences ->
       Enum.reject(preferences, fn {_id, pref} -> Map.get(pref, :username) == usuario end)
       |> Enum.into(%{})
     end)
   end
 
   def find_preferences(criteria) do
-    Agent.get(__MODULE__, fn preferences ->
+    Agent.get(via_tuple(), fn preferences ->
       preferences
       |> Map.values()
       |> Enum.filter(fn pref ->
@@ -56,7 +60,7 @@ defmodule ElixirFastCharge.Preferences do
   end
 
     def update_preference_alert(username, preference_id, alert_status) do
-    Agent.get_and_update(__MODULE__, fn preferences ->
+    Agent.get_and_update(via_tuple(), fn preferences ->
       case Map.get(preferences, preference_id) do
         nil ->
           {{:error, :preference_not_found}, preferences}

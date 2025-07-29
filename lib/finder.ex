@@ -1,17 +1,31 @@
 defmodule ElixirFastCharge.Finder do
-  use Supervisor
+  use Horde.DynamicSupervisor
 
   def start_link(_opts) do
-    Supervisor.start_link(__MODULE__, :ok, name: __MODULE__)
+    Horde.DynamicSupervisor.start_link(__MODULE__, [], name: __MODULE__, members: :auto)
   end
 
   @impl true
-  def init(:ok) do
+  def init(_opts) do
+    # Iniciar los agents
+    Task.start(fn ->
+      Process.sleep(1000)
+      start_storage_agents()
+    end)
+
+    Horde.DynamicSupervisor.init(strategy: :one_for_one)
+  end
+
+  def start_storage_agents do
     children = [
-      # ElixirFastCharge.Preferences ahora se inicia globalmente en application.ex
+      {ElixirFastCharge.Storage.PreReservationAgent, []},
+      {ElixirFastCharge.Storage.ShiftAgent, []},
+      {ElixirFastCharge.Preferences, %{}}
     ]
 
-    Supervisor.init(children, strategy: :one_for_one)
+    Enum.each(children, fn child_spec ->
+      Horde.DynamicSupervisor.start_child(__MODULE__, child_spec)
+    end)
   end
 
   def add_preference(preference_data) do

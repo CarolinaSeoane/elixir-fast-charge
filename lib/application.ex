@@ -20,6 +20,11 @@ defmodule ElixirFastCharge.Application do
         keys: :unique,
         members: :auto
       ]},
+      {Horde.Registry, [
+        name: ElixirFastCharge.DistributedStorageRegistry,
+        keys: :unique,
+        members: :auto
+      ]},
 
       {Horde.DynamicSupervisor, [
         name: ElixirFastCharge.UserDynamicSupervisor,
@@ -33,9 +38,6 @@ defmodule ElixirFastCharge.Application do
       ]},
 
       # otros
-      {ElixirFastCharge.Storage.PreReservationAgent, []},
-      {ElixirFastCharge.Storage.ShiftAgent, []},
-      {ElixirFastCharge.Preferences, %{}},
       {ElixirFastCharge.Finder, []},
       {ElixirFastCharge.ChargingStations.StationLoader, []},
       {Plug.Cowboy, scheme: :http, plug: ElixirFastCharge.MainRouter, options: [port: port, ref: :http_server]}
