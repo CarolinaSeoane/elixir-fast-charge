@@ -52,6 +52,10 @@ defmodule ElixirFastCharge.DistributedPreReservation do
     end
   end
 
+  def sync_pre_reservation(pre_reservation_data) do
+    GenServer.cast(__MODULE__, {:sync_pre_reservation, pre_reservation_data})
+  end
+
   # Server callbacks
 
   @impl true
@@ -71,7 +75,7 @@ defmodule ElixirFastCharge.DistributedPreReservation do
     pre_reservation_id = Map.get(pre_reservation, :pre_reservation_id, "unknown")
     expires_at = Map.get(pre_reservation, :expires_at)
 
-    Logger.info("📝 Pre-reserva #{pre_reservation_id} iniciada en nodo #{Node.self()}")
+    Logger.info("Pre-reserva #{pre_reservation_id} iniciada en nodo #{Node.self()}")
 
     # Programar expiración automática (2 minutos)
     if expires_at, do: schedule_expiration(expires_at)
@@ -206,6 +210,23 @@ defmodule ElixirFastCharge.DistributedPreReservation do
   def handle_info(msg, pre_reservation) do
     Logger.debug("Mensaje no manejado en pre-reserva #{pre_reservation.pre_reservation_id}: #{inspect(msg)}")
     {:noreply, pre_reservation}
+  end
+
+  @impl true
+  def handle_cast({:sync_pre_reservation, pre_reservation_data}, state) do
+    Logger.info("Sincronizando pre-reserva #{pre_reservation_data.pre_reservation_id} en nodo #{Node.self()}")
+
+    # Lógica para actualizar el estado local con pre_reservation_data
+    # ...
+
+    # Enviar el estado actualizado a otros nodos
+    Node.list()
+    |> Enum.each(fn node ->
+      Logger.info("Enviando actualización de pre-reserva a nodo #{node}")
+      Node.spawn(node, __MODULE__, :sync_pre_reservation, [pre_reservation_data])
+    end)
+
+    {:noreply, state}
   end
 
   # Funciones auxiliares

@@ -232,9 +232,9 @@ defmodule ElixirFastCharge.DistributedDataLoader do
 
   defp load_sample_users() do
     users_data = [
-      %{username: "admin", password: "admin123", metadata: %{role: "admin"}},
-      %{username: "user_demo", password: "demo123", metadata: %{role: "user"}},
-      %{username: "test_user", password: "test123", metadata: %{role: "test"}}
+      %{username: "admin", password: "admin123", metadata: %{role: "admin", mail: "admin@elixirfastcharge.com"}},
+      %{username: "user_demo", password: "demo123", metadata: %{role: "user", mail: "demo@elixirfastcharge.com"}},
+      %{username: "test_user", password: "test123", metadata: %{role: "test", mail: "test@elixirfastcharge.com"}}
     ]
 
     results = users_data

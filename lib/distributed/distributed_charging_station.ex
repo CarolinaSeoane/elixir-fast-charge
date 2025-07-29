@@ -63,6 +63,10 @@ defmodule ElixirFastCharge.DistributedChargingStation do
     end
   end
 
+  def sync_station(station_data) do
+    GenServer.cast(__MODULE__, {:sync_station, station_data})
+  end
+
   # GenServer Callbacks
 
   @impl true
@@ -179,6 +183,23 @@ defmodule ElixirFastCharge.DistributedChargingStation do
     }
 
     {:reply, {:ok, info}, station}
+  end
+
+  @impl true
+  def handle_cast({:sync_station, station_data}, state) do
+    Logger.info("Sincronizando estación #{station_data.station_id} en nodo #{Node.self()}")
+
+    # Lógica para actualizar el estado local con station_data
+    # ...
+
+    # Enviar el estado actualizado a otros nodos
+    Node.list()
+    |> Enum.each(fn node ->
+      Logger.info("Enviando actualización de estación a nodo #{node}")
+      Node.spawn(node, __MODULE__, :sync_station, [station_data])
+    end)
+
+    {:noreply, state}
   end
 
   @impl true

@@ -4,7 +4,7 @@ defmodule ElixirFastCharge.Application do
 
     @impl true
   def start(_type, _args) do
-    # Obtener puerto de configuración
+    # Obtener puerto de configuración (Docker o local)
     port = Application.get_env(:elixir_fast_charge, :http_port, 4002)
 
     children = [

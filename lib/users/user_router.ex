@@ -19,12 +19,13 @@ defmodule ElixirFastCharge.UserRouter do
 
   post "/sign-up" do
     case extract_signup_params(conn.body_params) do
-      {:ok, username, password} ->
-        case ElixirFastCharge.DistributedUserManager.create_user(username, password) do
+      {:ok, username, password, mail} ->
+        case ElixirFastCharge.DistributedUserManager.create_user(username, password, %{mail: mail}) do
           {:ok, user_pid} ->
             send_json_response(conn, 201, %{
               message: "User created successfully",
               username: username,
+              mail: mail,
               user_pid: inspect(user_pid),
               cluster_info: %{
                 node: Node.self(),
@@ -251,15 +252,15 @@ defmodule ElixirFastCharge.UserRouter do
 
   defp extract_signup_params(body_params) do
     case body_params do
-      %{"username" => username, "password" => password}
-        when is_binary(username) and is_binary(password) ->
-        {:ok, username, password}
+      %{"username" => username, "password" => password, "mail" => mail}
+        when is_binary(username) and is_binary(password) and is_binary(mail) ->
+        {:ok, username, password, mail}
 
-      %{"username" => _, "password" => _} ->
-        {:error, "username and password must be strings"}
+      %{"username" => _, "password" => _, "mail" => _} ->
+        {:error, "username, password and mail must be strings"}
 
       _ ->
-        {:error, "username and password are required"}
+        {:error, "username, password and mail are required"}
     end
   end
 

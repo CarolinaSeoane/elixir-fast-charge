@@ -43,6 +43,10 @@ defmodule ElixirFastCharge.DistributedPreference do
     end
   end
 
+  def sync_preference(preference_data) do
+    GenServer.cast(__MODULE__, {:sync_preference, preference_data})
+  end
+
   # GenServer Callbacks
 
   @impl true
@@ -131,6 +135,23 @@ defmodule ElixirFastCharge.DistributedPreference do
     }
 
     {:reply, {:ok, info}, preference}
+  end
+
+  @impl true
+  def handle_cast({:sync_preference, preference_data}, state) do
+    Logger.info("Sincronizando preferencia #{preference_data.preference_id} en nodo #{Node.self()}")
+
+    # Lógica para actualizar el estado local con preference_data
+    # ...
+
+    # Enviar el estado actualizado a otros nodos
+    Node.list()
+    |> Enum.each(fn node ->
+      Logger.info("Enviando actualización de preferencia a nodo #{node}")
+      Node.spawn(node, __MODULE__, :sync_preference, [preference_data])
+    end)
+
+    {:noreply, state}
   end
 
   @impl true

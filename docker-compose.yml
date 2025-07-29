@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  # === LOAD BALANCER ===
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8080:8080"  # Puerto único para el frontend
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - elixir-node1
+      - elixir-node2
+      - elixir-node3
+    restart: unless-stopped
+    networks:
+      - elixir-cluster
+
+  # === NODOS ELIXIR ===
+  elixir-node1:
+    build: .
+    environment:
+      - NODE_NAME=node1@elixir-node1
+      - HTTP_PORT=4002
+      - CLUSTER_NODES=node1@elixir-node1,node2@elixir-node2,node3@elixir-node3
+    expose:
+      - "4002"
+    networks:
+      - elixir-cluster
+    restart: unless-stopped
+
+  elixir-node2:
+    build: .
+    environment:
+      - NODE_NAME=node2@elixir-node2
+      - HTTP_PORT=4003
+      - CLUSTER_NODES=node1@elixir-node1,node2@elixir-node2,node3@elixir-node3
+    expose:
+      - "4003"
+    networks:
+      - elixir-cluster
+    restart: unless-stopped
+
+  elixir-node3:
+    build: .
+    environment:
+      - NODE_NAME=node3@elixir-node3
+      - HTTP_PORT=4004
+      - CLUSTER_NODES=node1@elixir-node1,node2@elixir-node2,node3@elixir-node3
+    expose:
+      - "4004"
+    networks:
+      - elixir-cluster
+    restart: unless-stopped
+
+networks:
+  elixir-cluster:
+    driver: bridge 

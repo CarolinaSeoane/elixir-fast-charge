@@ -42,6 +42,10 @@ defmodule ElixirFastCharge.DistributedUser do
     end
   end
 
+  def sync_user(user_data) do
+    GenServer.cast(__MODULE__, {:sync_user, user_data})
+  end
+
   # GenServer Callbacks
 
   @impl true
@@ -49,15 +53,20 @@ defmodule ElixirFastCharge.DistributedUser do
     # Hash de la contraseña para seguridad
     hashed_password = :crypto.hash(:sha256, user_data.password) |> Base.encode64()
 
+    # Extraer mail de metadata para ponerlo como campo principal
+    metadata = Map.get(user_data, :metadata, %{})
+    mail = Map.get(metadata, :mail, "")
+
     user = %{
       username: user_data.username,
+      mail: mail, # Campo principal para el email
       password_hash: hashed_password,
       status: :active,
       created_at: DateTime.utc_now(),
       updated_at: DateTime.utc_now(),
       current_node: Node.self(),
       created_by_node: Node.self(),
-      metadata: Map.get(user_data, :metadata, %{})
+      metadata: metadata
     }
 
     Logger.info("👤 Usuario #{user.username} iniciado en nodo #{Node.self()}")
@@ -101,6 +110,7 @@ defmodule ElixirFastCharge.DistributedUser do
   def handle_call(:get_info, _from, user) do
     info = %{
       username: user.username,
+      mail: user.mail, # Incluir email en la información detallada
       status: user.status,
       created_at: user.created_at,
       updated_at: user.updated_at,
@@ -113,6 +123,23 @@ defmodule ElixirFastCharge.DistributedUser do
     }
 
     {:reply, {:ok, info}, user}
+  end
+
+  @impl true
+  def handle_cast({:sync_user, user_data}, state) do
+    Logger.info("Sincronizando usuario \\#{user_data.username} en nodo \\#{Node.self()}")
+
+    # Lógica para actualizar el estado local con user_data
+    # ...
+
+    # Enviar el estado actualizado a otros nodos
+    Node.list()
+    |> Enum.each(fn node ->
+      Logger.info("Enviando actualización de usuario a nodo \\#{node}")
+      Node.spawn(node, __MODULE__, :sync_user, [user_data])
+    end)
+
+    {:noreply, state}
   end
 
   @impl true

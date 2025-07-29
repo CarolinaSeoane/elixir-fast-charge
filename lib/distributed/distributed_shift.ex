@@ -47,6 +47,10 @@ defmodule ElixirFastCharge.DistributedShift do
     end
   end
 
+  def sync_shift(shift_data) do
+    GenServer.cast(__MODULE__, {:sync_shift, shift_data})
+  end
+
   # Server callbacks
 
   @impl true
@@ -139,6 +143,23 @@ defmodule ElixirFastCharge.DistributedShift do
       }
     }
     {:reply, info, shift}
+  end
+
+  @impl true
+  def handle_cast({:sync_shift, shift_data}, state) do
+    Logger.info("Sincronizando turno \\#{shift_data.shift_id} en nodo \\#{Node.self()}")
+
+    # Lógica para actualizar el estado local con shift_data
+    # ...
+
+    # Enviar el estado actualizado a otros nodos
+    Node.list()
+    |> Enum.each(fn node ->
+      Logger.info("Enviando actualización de turno a nodo \\#{node}")
+      Node.spawn(node, __MODULE__, :sync_shift, [shift_data])
+    end)
+
+    {:noreply, state}
   end
 
   @impl true
