@@ -10,6 +10,8 @@ defmodule ElixirFastCharge.Application do
       # 1. libcluster para descubrimiento de nodos (PRIMERO)
       {Cluster.Supervisor, [topologies(), [name: ElixirFastCharge.ClusterSupervisor]]},
 
+      {TelemetryMetricsPrometheus, [metrics: metrics()]},
+
       {Horde.Registry, [
         name: ElixirFastCharge.UserRegistry,
         keys: :unique,
@@ -65,4 +67,21 @@ defmodule ElixirFastCharge.Application do
     :cowboy.stop_listener(:http_server)
     :ok
   end
+
+  defp metrics do
+    [
+      Telemetry.Metrics.counter("plug.router.call.count",
+        unit: {:native, :millisecond},
+        tags: [:method, :path_info, :status]
+      ),
+      Telemetry.Metrics.distribution("plug.router.call.duration",
+        unit: {:native, :millisecond},
+        tags: [:method, :path_info, :status],
+        reporter_options: [
+          buckets: [0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0]
+        ]
+      )
+    ]
+  end
+
 end
