@@ -8,7 +8,7 @@ defmodule ElixirFastCharge.Finder do
   @impl true
   def init(:ok) do
     children = [
-      {ElixirFastCharge.Preferences, %{}}
+      # ElixirFastCharge.Preferences ahora se inicia globalmente en application.ex
     ]
 
     Supervisor.init(children, strategy: :one_for_one)
@@ -90,14 +90,15 @@ defmodule ElixirFastCharge.Finder do
 
   defp notify_user(preference, shift) do
     username = Map.get(preference, :username)
-    case Registry.lookup(ElixirFastCharge.UserRegistry, username) do
+
+    case Horde.Registry.lookup(ElixirFastCharge.UserRegistry, username) do
       [{user_pid, _}] ->
         notification = "New shift available! Station: #{shift.station_id}, Point: #{shift.point_id}, Time: #{shift.start_time} - #{shift.end_time}"
         ElixirFastCharge.User.send_notification(user_pid, notification)
-        IO.puts("ALERT sent to #{username}")
+        IO.puts("ALERT sent to #{username} (node: #{node(user_pid)})")
 
       [] ->
-        IO.puts("User #{username} not found - notification not sent")
+        IO.puts("User #{username} not found in cluster - notification not sent")
     end
   end
 

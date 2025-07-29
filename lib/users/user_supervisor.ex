@@ -1,12 +1,7 @@
 defmodule ElixirFastCharge.UserDynamicSupervisor do
-  use DynamicSupervisor
-
-  def start_link(init_arg) do
-    DynamicSupervisor.start_link(__MODULE__, init_arg, name: __MODULE__)
-  end
 
   def create_user(username, password) do
-    case Registry.lookup(ElixirFastCharge.UserRegistry, username) do
+    case Horde.Registry.lookup(ElixirFastCharge.UserRegistry, username) do
       [{_existing_pid, _}] ->
         {:error, :username_taken}
 
@@ -19,8 +14,10 @@ defmodule ElixirFastCharge.UserDynamicSupervisor do
           type: :worker
         }
 
-        case DynamicSupervisor.start_child(__MODULE__, child_spec) do
+        # Usa Horde.DynamicSupervisor en lugar de DynamicSupervisor normal
+        case Horde.DynamicSupervisor.start_child(ElixirFastCharge.UserDynamicSupervisor, child_spec) do
           {:ok, user_pid} ->
+            IO.puts("Usuario '#{username}' creado en nodo: #{node(user_pid)}")
             {:ok, user_pid}
 
           {:error, reason} ->
@@ -30,25 +27,15 @@ defmodule ElixirFastCharge.UserDynamicSupervisor do
   end
 
   def get_user(username) do
-    case Registry.lookup(ElixirFastCharge.UserRegistry, username) do
-      [{_supervisor_pid, user_pid}] -> {:ok, user_pid}
+    case Horde.Registry.lookup(ElixirFastCharge.UserRegistry, username) do
+      [{user_pid, _}] -> {:ok, user_pid}
       [] -> {:error, :not_found}
     end
   end
 
   def list_users do
-    # Returns username -> user_pid mapping
-    Registry.select(ElixirFastCharge.UserRegistry, [{{:"$1", :"$2", :"$3"}, [], [{{:"$1", :"$3"}}]}])
+    Horde.Registry.select(ElixirFastCharge.UserRegistry, [{{:"$1", :"$2", :"$3"}, [], [{{:"$1", :"$2"}}]}])
     |> Enum.into(%{})
   end
 
-  def start_child(foo, bar, baz) do
-    spec = %{id: ElixirFastCharge.User, start: {ElixirFastCharge.User, :start_link, [foo, bar, baz]}}
-    DynamicSupervisor.start_child(__MODULE__, spec)
-  end
-
-  @impl true
-  def init(_init_arg) do
-    DynamicSupervisor.init(strategy: :one_for_one)
-  end
 end

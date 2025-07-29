@@ -5,10 +5,10 @@ defmodule ElixirFastCharge.User do
     GenServer.start_link(__MODULE__, {username, password})
   end
 
-  # @impl true
   def init({username, password}) do
-    case Registry.register(ElixirFastCharge.UserRegistry, username, self()) do
+    case Horde.Registry.register(ElixirFastCharge.UserRegistry, username, self()) do
       {:ok, _} ->
+        IO.puts("Usuario '#{username}' registrado en nodo: #{node()}")
 
         initial_state = %{
           username: username,

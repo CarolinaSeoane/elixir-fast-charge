@@ -39,14 +39,11 @@ defmodule ElixirFastCharge.ChargingStations.ChargingStation do
 
   @impl true
   def init({station_id, station_data}) do
-    IO.puts("Charging Station #{station_id} started")
-
-    # Registrarse en el Registry estándar
-    case Registry.register(ElixirFastCharge.ChargingStations.StationRegistry, station_id, self()) do
+    case ElixirFastCharge.ChargingStations.StationRegistry.register_station(station_id) do
       {:ok, _} ->
-        IO.puts("✓ Estación #{station_id} registrada en Registry")
+        IO.puts("Estación #{station_id} registrada en Horde Registry (nodo: #{node()})")
       {:error, reason} ->
-        IO.puts("✗ Error registrando #{station_id}: #{inspect(reason)}")
+        IO.puts("Error registrando #{station_id}: #{inspect(reason)}")
     end
 
     initial_state = %{

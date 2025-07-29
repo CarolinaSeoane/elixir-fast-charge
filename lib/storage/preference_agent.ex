@@ -1,13 +1,3 @@
-"
-preference = {
-  username:
-  station_id:
-  connector_type:
-  power:
-  location:
-}
-"
-
 defmodule ElixirFastCharge.Preferences do
   use Agent
 
