@@ -5,12 +5,19 @@ defmodule ElixirFastCharge.Application do
   @impl true
   def start(_type, _args) do
     port = String.to_integer(System.get_env("PORT") || "5014")
+    prometheus_port = port + 5000
 
     children = [
       # 1. libcluster para descubrimiento de nodos (PRIMERO)
-      {Cluster.Supervisor, [topologies(), [name: ElixirFastCharge.ClusterSupervisor]]},
+      {Cluster.Supervisor, [
+        topologies(),
+        [name: ElixirFastCharge.ClusterSupervisor]
+      ]},
 
-      {TelemetryMetricsPrometheus, [metrics: metrics()]},
+      {TelemetryMetricsPrometheus, [
+        metrics: metrics(),
+        port: prometheus_port
+      ]},
 
       {Horde.Registry, [
         name: ElixirFastCharge.UserRegistry,
