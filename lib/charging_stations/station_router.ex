@@ -9,11 +9,22 @@ defmodule ElixirFastCharge.StationRouter do
 
     stations = stations_raw
     |> Enum.map(fn {station_id, pid} ->
+      station_data =
+        case ElixirFastCharge.ChargingStationSupervisor.get_station(station_id) do
+          {:ok, station_pid} ->
+            try do
+              ElixirFastCharge.ChargingStations.ChargingStation.get_status(station_pid)
+            catch
+              _ -> %{available: false, error: "Could not retrieve status"}
+            end
 
-      %{
-        station_id: station_id,
-        pid: inspect(pid),
-      }
+          {:error, _} ->
+            %{available: false, error: "Station not found"}
+        end
+
+      station_data
+      |> Map.put(:station_id, station_id)
+      |> Map.put(:pid, inspect(pid))
     end)
 
     send_json_response(conn, 200, %{
