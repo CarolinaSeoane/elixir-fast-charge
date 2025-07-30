@@ -5,20 +5,26 @@ defmodule ElixirFastCharge.StationRouter do
   plug :dispatch
 
   get "/" do
-    station_tuples = ElixirFastCharge.ChargingStations.StationRegistry.list_stations()
+    stations_raw = ElixirFastCharge.ChargingStationSupervisor.list_stations()
 
-    stations = Enum.map(station_tuples, fn {station_id, _pid} ->
-      try do
-        station_data = ElixirFastCharge.ChargingStations.ChargingStation.get_status(station_id)
-        Map.put(station_data, :station_id, station_id)
-      rescue
-        _ ->
-          %{
-            station_id: station_id,
-            available: false,
-            error: "Station not responding"
-          }
-      end
+    stations = stations_raw
+    |> Enum.map(fn {station_id, pid} ->
+      station_data =
+        case ElixirFastCharge.ChargingStationSupervisor.get_station(station_id) do
+          {:ok, station_pid} ->
+            try do
+              ElixirFastCharge.ChargingStations.ChargingStation.get_status(station_pid)
+            catch
+              _ -> %{available: false, error: "Could not retrieve status"}
+            end
+
+          {:error, _} ->
+            %{available: false, error: "Station not found"}
+        end
+
+      station_data
+      |> Map.put(:station_id, station_id)
+      |> Map.put(:pid, inspect(pid))
     end)
 
     send_json_response(conn, 200, %{
@@ -30,33 +36,17 @@ defmodule ElixirFastCharge.StationRouter do
   get "/:station_id" do
     station_id = String.to_atom(station_id)
 
-    if _pid = ElixirFastCharge.ChargingStations.StationRegistry.get_station(station_id) do
-      station_data = ElixirFastCharge.ChargingStations.ChargingStation.get_status(station_id)
-      send_json_response(conn, 200, station_data)
-    else
-      send_json_response(conn, 404, %{error: "Station not found"})
-    end
-  end
-
-  get "/:station_id/charging-points" do
-    station_id = String.to_atom(station_id)
-
-    if _pid = ElixirFastCharge.ChargingStations.StationRegistry.get_station(station_id) do
-      points = ElixirFastCharge.ChargingStations.ChargingStation.get_charging_points(station_id)
-      send_json_response(conn, 200, %{charging_points: points})
-    else
-      send_json_response(conn, 404, %{error: "Station not found"})
-    end
-  end
-
-  get "/:station_id/available-points" do
-    station_id = String.to_atom(station_id)
-
-    if _pid = ElixirFastCharge.ChargingStations.StationRegistry.get_station(station_id) do
-      points = ElixirFastCharge.ChargingStations.ChargingStation.get_available_points(station_id)
-      send_json_response(conn, 200, %{available_points: points})
-    else
-      send_json_response(conn, 404, %{error: "Station not found"})
+    case ElixirFastCharge.ChargingStationSupervisor.get_station(station_id) do
+      {:ok, station_pid} ->
+        try do
+          station_data = ElixirFastCharge.ChargingStations.ChargingStation.get_status(station_pid)
+          send_json_response(conn, 200, station_data)
+        catch
+          :exit, _ ->
+            send_json_response(conn, 500, %{error: "Station not responding"})
+        end
+      {:error, :not_found} ->
+        send_json_response(conn, 404, %{error: "Station not found"})
     end
   end
 
@@ -77,15 +67,25 @@ defmodule ElixirFastCharge.StationRouter do
 
     case extract_shift_params(conn.body_params) do
       {:ok, shift_params} ->
-        case ElixirFastCharge.ChargingStations.ChargingStation.publish_shifts(station_id, shift_params) do
-          {:ok, created_shifts} ->
-            send_json_response(conn, 201, %{
-              message: "Shifts created successfully",
-              shifts: created_shifts,
-              count: length(created_shifts)
-            })
-          {:error, reason} ->
-            send_json_response(conn, 500, %{error: "Failed to create shifts", reason: inspect(reason)})
+        case ElixirFastCharge.ChargingStationSupervisor.get_station(station_id) do
+          {:ok, station_pid} ->
+            try do
+              case ElixirFastCharge.ChargingStations.ChargingStation.publish_shifts(station_pid, shift_params) do
+                {:ok, created_shifts} ->
+                  send_json_response(conn, 201, %{
+                    message: "Shifts created successfully",
+                    shifts: created_shifts,
+                    count: length(created_shifts)
+                  })
+                {:error, reason} ->
+                  send_json_response(conn, 500, %{error: "Failed to create shifts", reason: inspect(reason)})
+              end
+            catch
+              :exit, _ ->
+                send_json_response(conn, 500, %{error: "Station not responding"})
+            end
+          {:error, :not_found} ->
+            send_json_response(conn, 404, %{error: "Station not found"})
         end
       {:error, error_message} ->
         send_json_response(conn, 400, %{error: error_message})
@@ -97,14 +97,24 @@ defmodule ElixirFastCharge.StationRouter do
 
     case extract_shift_params(conn.body_params) do
       {:ok, shift_params} ->
-        case ElixirFastCharge.ChargingStations.ChargingStation.publish_shift_for_point(station_id, point_id, shift_params) do
-          {:ok, shift} ->
-            send_json_response(conn, 201, %{
-              message: "Shift created successfully",
-              shift: shift
-            })
-          {:error, reason} ->
-            send_json_response(conn, 500, %{error: "Failed to create shift", reason: inspect(reason)})
+        case ElixirFastCharge.ChargingStationSupervisor.get_station(station_id) do
+          {:ok, station_pid} ->
+            try do
+              case ElixirFastCharge.ChargingStations.ChargingStation.publish_shift_for_point(station_pid, point_id, shift_params) do
+                {:ok, shift} ->
+                  send_json_response(conn, 201, %{
+                    message: "Shift created successfully",
+                    shift: shift
+                  })
+                {:error, reason} ->
+                  send_json_response(conn, 500, %{error: "Failed to create shift", reason: inspect(reason)})
+              end
+            catch
+              :exit, _ ->
+                send_json_response(conn, 500, %{error: "Station not responding"})
+            end
+          {:error, :not_found} ->
+            send_json_response(conn, 404, %{error: "Station not found"})
         end
       {:error, error_message} ->
         send_json_response(conn, 400, %{error: error_message})

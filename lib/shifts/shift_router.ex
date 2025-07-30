@@ -51,9 +51,6 @@ defmodule ElixirFastCharge.ShiftRouter do
                       pre_reservation: pre_reservation,
                       message: "Pre-reservation created successfully. You have 1 minute to confirm payment."
                     })
-
-                  {:error, reason} ->
-                    send_json_response(conn, 500, %{error: "Failed to create pre-reservation", reason: inspect(reason)})
                 end
 
               _shift ->

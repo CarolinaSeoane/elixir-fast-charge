@@ -1,14 +1,4 @@
 defmodule ElixirFastCharge.ChargingStationSupervisor do
-  use DynamicSupervisor
-
-  def start_link(init_arg) do
-    DynamicSupervisor.start_link(__MODULE__, init_arg, name: __MODULE__)
-  end
-
-    @impl true
-  def init(_init_arg) do
-    DynamicSupervisor.init(strategy: :one_for_one)
-  end
 
   def start_charging_station(station_id, station_data \\ %{}) do
     child_spec = %{
@@ -19,26 +9,19 @@ defmodule ElixirFastCharge.ChargingStationSupervisor do
       type: :worker
     }
 
-    DynamicSupervisor.start_child(__MODULE__, child_spec)
+    Horde.DynamicSupervisor.start_child(ElixirFastCharge.ChargingStationSupervisor, child_spec)
   end
 
-  def stop_charging_station(station_id) do
-    DynamicSupervisor.terminate_child(__MODULE__, station_id)
+  def list_stations do
+    Horde.Registry.select(ElixirFastCharge.ChargingStations.StationRegistry, [{{:"$1", :"$2", :"$3"}, [], [{{:"$1", :"$2"}}]}])
+    |> Enum.into(%{})
   end
 
-  def list_charging_stations do
-    Registry.select(ElixirFastCharge.ChargingStations.StationRegistry, [{{:"$1", :"$2", :"$3"}, [], [{{:"$1", :"$3"}}]}])
-    |> Enum.map(fn {station_id, pid} ->
-      %{
-        id: station_id,
-        pid: inspect(pid)
-      }
-    end)
-  end
-
-  def get_station_status(station_id) do
-    pid = Process.whereis(station_id)
-    ElixirFastCharge.ChargingStations.ChargingStation.get_status(pid)
+  def get_station(station_id) do
+    case Horde.Registry.lookup(ElixirFastCharge.ChargingStations.StationRegistry, station_id) do
+      [{station_pid, _}] -> {:ok, station_pid}
+      [] -> {:error, :not_found}
+    end
   end
 
 end

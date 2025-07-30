@@ -2,7 +2,7 @@ defmodule ElixirFastCharge.ChargingStations.ChargingStation do
   use GenServer
 
   def start_link(station_id, station_data \\ %{}) do
-    GenServer.start_link(__MODULE__, {station_id, station_data}, name: station_id)
+    GenServer.start_link(__MODULE__, {station_id, station_data})
   end
 
   def get_status(station_id) do
@@ -39,24 +39,22 @@ defmodule ElixirFastCharge.ChargingStations.ChargingStation do
 
   @impl true
   def init({station_id, station_data}) do
-    IO.puts("Charging Station #{station_id} started")
-
-    # Registrarse en el Registry estándar
-    case Registry.register(ElixirFastCharge.ChargingStations.StationRegistry, station_id, self()) do
+    case Horde.Registry.register(ElixirFastCharge.ChargingStations.StationRegistry, station_id, self()) do
       {:ok, _} ->
-        IO.puts("✓ Estación #{station_id} registrada en Registry")
-      {:error, reason} ->
-        IO.puts("✗ Error registrando #{station_id}: #{inspect(reason)}")
+        IO.puts("Estación #{station_id} registrada en Horde Registry (nodo: #{node()})")
+
+        initial_state = %{
+          station_id: station_id,
+          available: Map.get(station_data, :available, true),
+          location: Map.get(station_data, :location, %{}),
+          charging_points: Map.get(station_data, :charging_points, [])
+        }
+
+        {:ok, initial_state}
+
+      {:error, {:already_registered, _}} ->
+        {:stop, :station_already_exists}
     end
-
-    initial_state = %{
-      station_id: station_id,
-      available: Map.get(station_data, :available, true),
-      location: Map.get(station_data, :location, %{}),
-      charging_points: Map.get(station_data, :charging_points, [])
-    }
-
-    {:ok, initial_state}
   end
 
   @impl true

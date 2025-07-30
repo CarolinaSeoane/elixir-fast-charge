@@ -2,7 +2,11 @@ defmodule ElixirFastCharge.Storage.PreReservationAgent do
   use Agent
 
   def start_link(_opts) do
-    Agent.start_link(fn -> %{} end, name: __MODULE__)
+    Agent.start_link(fn -> %{} end, name: via_tuple())
+  end
+
+  defp via_tuple do
+    {:via, Horde.Registry, {ElixirFastCharge.DistributedStorageRegistry, __MODULE__}}
   end
 
   def create_pre_reservation(user_id, shift_id) do
@@ -20,7 +24,7 @@ defmodule ElixirFastCharge.Storage.PreReservationAgent do
       updated_at: now
     }
 
-    Agent.update(__MODULE__, fn pre_reservations ->
+    Agent.update(via_tuple(), fn pre_reservations ->
       Map.put(pre_reservations, pre_reservation_id, pre_reservation)
     end)
 
@@ -28,7 +32,7 @@ defmodule ElixirFastCharge.Storage.PreReservationAgent do
   end
 
   def get_pre_reservation(pre_reservation_id) do
-    Agent.get(__MODULE__, fn pre_reservations ->
+    Agent.get(via_tuple(), fn pre_reservations ->
       case Map.get(pre_reservations, pre_reservation_id) do
         nil -> {:error, :not_found}
         pre_reservation -> {:ok, pre_reservation}
@@ -37,7 +41,7 @@ defmodule ElixirFastCharge.Storage.PreReservationAgent do
   end
 
   def confirm_pre_reservation(pre_reservation_id) do
-    Agent.get_and_update(__MODULE__, fn pre_reservations ->
+    Agent.get_and_update(via_tuple(), fn pre_reservations ->
       case Map.get(pre_reservations, pre_reservation_id) do
         nil ->
           {{:error, :not_found}, pre_reservations}
@@ -63,7 +67,7 @@ defmodule ElixirFastCharge.Storage.PreReservationAgent do
   end
 
   def cancel_pre_reservation(pre_reservation_id) do
-    Agent.get_and_update(__MODULE__, fn pre_reservations ->
+    Agent.get_and_update(via_tuple(), fn pre_reservations ->
       case Map.get(pre_reservations, pre_reservation_id) do
         nil ->
           {{:error, :not_found}, pre_reservations}
@@ -77,7 +81,7 @@ defmodule ElixirFastCharge.Storage.PreReservationAgent do
   end
 
   def list_pending_pre_reservations_for_shift(shift_id) do
-    Agent.get(__MODULE__, fn pre_reservations ->
+    Agent.get(via_tuple(), fn pre_reservations ->
       now = DateTime.utc_now()
 
       pre_reservations
@@ -91,7 +95,7 @@ defmodule ElixirFastCharge.Storage.PreReservationAgent do
   end
 
   def list_confirmed_pre_reservations_for_user(user_id) do
-    result = Agent.get(__MODULE__, fn pre_reservations ->
+    result = Agent.get(via_tuple(), fn pre_reservations ->
       filtered_result = pre_reservations
       |> Map.values()
       |> Enum.filter(fn pr ->
@@ -107,7 +111,7 @@ defmodule ElixirFastCharge.Storage.PreReservationAgent do
   end
 
   def expire_old_pre_reservations do
-    Agent.get_and_update(__MODULE__, fn pre_reservations ->
+    Agent.get_and_update(via_tuple(), fn pre_reservations ->
       now = DateTime.utc_now()
 
       {expired_count, updated_pre_reservations} =
@@ -126,13 +130,13 @@ defmodule ElixirFastCharge.Storage.PreReservationAgent do
   end
 
   def get_all_pre_reservations do
-    Agent.get(__MODULE__, &Map.values(&1))
+    Agent.get(via_tuple(), &Map.values(&1))
   end
 
   def update_pre_reservation(pre_reservation_id, user_id, shift_id) do
     now = DateTime.utc_now()
 
-    Agent.get_and_update(__MODULE__, fn pre_reservations ->
+    Agent.get_and_update(via_tuple(), fn pre_reservations ->
       case Map.get(pre_reservations, pre_reservation_id) do
         nil ->
           {{:error, :not_found}, pre_reservations}

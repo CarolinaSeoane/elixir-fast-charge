@@ -55,7 +55,7 @@ defmodule ElixirFastCharge.UserRouter do
   end
 
   get "/:username/notifications" do
-    case Registry.lookup(ElixirFastCharge.UserRegistry, username) do
+    case Horde.Registry.lookup(ElixirFastCharge.UserRegistry, username) do
       [{user_pid, _}] ->
         notifications = ElixirFastCharge.User.get_notifications(user_pid)
 

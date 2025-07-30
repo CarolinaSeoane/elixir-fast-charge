@@ -2,7 +2,11 @@ defmodule ElixirFastCharge.Storage.ShiftAgent do
   use Agent
 
   def start_link(_opts) do
-    Agent.start_link(fn -> %{} end, name: __MODULE__)
+    Agent.start_link(fn -> %{} end, name: via_tuple())
+  end
+
+  defp via_tuple do
+    {:via, Horde.Registry, {ElixirFastCharge.DistributedStorageRegistry, __MODULE__}}
   end
 
   def create_shift(shift_data) do
@@ -29,7 +33,7 @@ defmodule ElixirFastCharge.Storage.ShiftAgent do
       reserved_at: nil
     }
 
-    Agent.update(__MODULE__, fn shifts ->
+    Agent.update(via_tuple(), fn shifts ->
       Map.put(shifts, shift_id, shift)
     end)
 
@@ -37,13 +41,13 @@ defmodule ElixirFastCharge.Storage.ShiftAgent do
   end
 
   def get_shift(shift_id) do
-    Agent.get(__MODULE__, fn shifts ->
+    Agent.get(via_tuple(), fn shifts ->
       Map.get(shifts, shift_id)
     end)
   end
 
   def list_active_shifts do
-    Agent.get(__MODULE__, fn shifts ->
+    Agent.get(via_tuple(), fn shifts ->
       shifts
       |> Enum.filter(fn {_id, shift} -> shift.status == :active end)
       |> Enum.map(fn {_id, shift} -> shift end)
@@ -51,7 +55,7 @@ defmodule ElixirFastCharge.Storage.ShiftAgent do
   end
 
   def list_active_shifts_boolean do
-    Agent.get(__MODULE__, fn shifts ->
+    Agent.get(via_tuple(), fn shifts ->
       shifts
       |> Enum.filter(fn {_id, shift} -> shift.active == true end)
       |> Enum.map(fn {_id, shift} -> shift end)
@@ -59,7 +63,7 @@ defmodule ElixirFastCharge.Storage.ShiftAgent do
   end
 
   def list_inactive_shifts do
-    Agent.get(__MODULE__, fn shifts ->
+    Agent.get(via_tuple(), fn shifts ->
       shifts
       |> Enum.filter(fn {_id, shift} -> shift.active == false end)
       |> Enum.map(fn {_id, shift} -> shift end)
@@ -67,14 +71,14 @@ defmodule ElixirFastCharge.Storage.ShiftAgent do
   end
 
   def count_active_shifts do
-    Agent.get(__MODULE__, fn shifts ->
+    Agent.get(via_tuple(), fn shifts ->
       shifts
       |> Enum.count(fn {_id, shift} -> shift.active == true end)
     end)
   end
 
   def list_shifts_by_station(station_id) do
-    Agent.get(__MODULE__, fn shifts ->
+    Agent.get(via_tuple(), fn shifts ->
       shifts
       |> Enum.filter(fn {_id, shift} -> shift.station_id == station_id end)
       |> Enum.map(fn {_id, shift} -> shift end)
@@ -82,7 +86,7 @@ defmodule ElixirFastCharge.Storage.ShiftAgent do
   end
 
   def reserve_shift(shift_id, user_id) do
-    Agent.get_and_update(__MODULE__, fn shifts ->
+    Agent.get_and_update(via_tuple(), fn shifts ->
       case Map.get(shifts, shift_id) do
         nil ->
           {{:error, :shift_not_found}, shifts}
@@ -106,7 +110,7 @@ defmodule ElixirFastCharge.Storage.ShiftAgent do
   def expire_old_shifts do
     now = DateTime.utc_now()
 
-    Agent.update(__MODULE__, fn shifts ->
+    Agent.update(via_tuple(), fn shifts ->
       Enum.map(shifts, fn {shift_id, shift} ->
         if shift.status == :active and DateTime.compare(now, shift.expires_at) == :gt do
           {shift_id, %{shift | status: :expired, active: false}}
@@ -119,15 +123,15 @@ defmodule ElixirFastCharge.Storage.ShiftAgent do
   end
 
   def get_all_shifts do
-    Agent.get(__MODULE__, & &1)
+    Agent.get(via_tuple(), & &1)
   end
 
   def count_shifts do
-    Agent.get(__MODULE__, fn shifts -> map_size(shifts) end)
+    Agent.get(via_tuple(), fn shifts -> map_size(shifts) end)
   end
 
   def set_shift_active(shift_id, active_status) when is_boolean(active_status) do
-    Agent.get_and_update(__MODULE__, fn shifts ->
+    Agent.get_and_update(via_tuple(), fn shifts ->
       case Map.get(shifts, shift_id) do
         nil ->
           {{:error, :shift_not_found}, shifts}

@@ -1,17 +1,31 @@
 defmodule ElixirFastCharge.Finder do
-  use Supervisor
+  use Horde.DynamicSupervisor
 
   def start_link(_opts) do
-    Supervisor.start_link(__MODULE__, :ok, name: __MODULE__)
+    Horde.DynamicSupervisor.start_link(__MODULE__, [], name: __MODULE__, members: :auto)
   end
 
   @impl true
-  def init(:ok) do
+  def init(_opts) do
+    # Iniciar los agents
+    Task.start(fn ->
+      Process.sleep(1000)
+      start_storage_agents()
+    end)
+
+    Horde.DynamicSupervisor.init(strategy: :one_for_one)
+  end
+
+  def start_storage_agents do
     children = [
+      {ElixirFastCharge.Storage.PreReservationAgent, []},
+      {ElixirFastCharge.Storage.ShiftAgent, []},
       {ElixirFastCharge.Preferences, %{}}
     ]
 
-    Supervisor.init(children, strategy: :one_for_one)
+    Enum.each(children, fn child_spec ->
+      Horde.DynamicSupervisor.start_child(__MODULE__, child_spec)
+    end)
   end
 
   def add_preference(preference_data) do
@@ -24,18 +38,6 @@ defmodule ElixirFastCharge.Finder do
 
   def update_preference_alert(username, preference_id, alert_status) do
     ElixirFastCharge.Preferences.update_preference_alert(username, preference_id, alert_status)
-  end
-
-  def list_all_stations do
-    ElixirFastCharge.ChargingStations.StationRegistry.list_stations()
-    |> Enum.to_list()
-  end
-
-  def find_station(station_id) do
-    case ElixirFastCharge.ChargingStations.StationRegistry.get_station(station_id) do
-      nil -> {:error, :not_found}
-      pid -> {:ok, pid}
-    end
   end
 
   def send_alerts(shift) do
@@ -90,14 +92,15 @@ defmodule ElixirFastCharge.Finder do
 
   defp notify_user(preference, shift) do
     username = Map.get(preference, :username)
-    case Registry.lookup(ElixirFastCharge.UserRegistry, username) do
+
+    case Horde.Registry.lookup(ElixirFastCharge.UserRegistry, username) do
       [{user_pid, _}] ->
         notification = "New shift available! Station: #{shift.station_id}, Point: #{shift.point_id}, Time: #{shift.start_time} - #{shift.end_time}"
         ElixirFastCharge.User.send_notification(user_pid, notification)
-        IO.puts("ALERT sent to #{username}")
+        IO.puts("ALERT sent to #{username} (node: #{node(user_pid)})")
 
       [] ->
-        IO.puts("User #{username} not found - notification not sent")
+        IO.puts("User #{username} not found in cluster - notification not sent")
     end
   end
 
