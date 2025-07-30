@@ -12,28 +12,16 @@ defmodule ElixirFastCharge.ChargingStationSupervisor do
     Horde.DynamicSupervisor.start_child(ElixirFastCharge.ChargingStationSupervisor, child_spec)
   end
 
-  def stop_charging_station(station_id) do
-    case ElixirFastCharge.ChargingStations.StationRegistry.get_station(station_id) do
-      nil -> {:error, :not_found}
-      pid -> Horde.DynamicSupervisor.terminate_child(ElixirFastCharge.ChargingStationSupervisor, pid)
+  def list_stations do
+    Horde.Registry.select(ElixirFastCharge.ChargingStations.StationRegistry, [{{:"$1", :"$2", :"$3"}, [], [{{:"$1", :"$2"}}]}])
+    |> Enum.into(%{})
+  end
+
+  def get_station(station_id) do
+    case Horde.Registry.lookup(ElixirFastCharge.ChargingStations.StationRegistry, station_id) do
+      [{station_pid, _}] -> {:ok, station_pid}
+      [] -> {:error, :not_found}
     end
   end
 
-  def list_charging_stations do
-    ElixirFastCharge.ChargingStations.StationRegistry.list_stations()
-    |> Enum.map(fn {station_id, pid} ->
-      %{
-        id: station_id,
-        pid: inspect(pid),
-        node: node(pid)
-      }
-    end)
-  end
-
-  def get_station_status(station_id) do
-    case ElixirFastCharge.ChargingStations.StationRegistry.get_station(station_id) do
-      nil -> {:error, :not_found}
-      pid -> ElixirFastCharge.ChargingStations.ChargingStation.get_status(pid)
-    end
-  end
 end

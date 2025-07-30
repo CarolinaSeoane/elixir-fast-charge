@@ -7,8 +7,6 @@ defmodule ElixirFastCharge.ChargingStations.StationLoader do
 
   @impl true
   def init(_init_arg) do
-    IO.puts("StationLoader iniciado - cargando estaciones por defecto...")
-    # Cargar estaciones después de que todo esté listo
     Process.send_after(self(), :load_stations, 100)
     {:ok, %{}}
   end
@@ -22,8 +20,15 @@ defmodule ElixirFastCharge.ChargingStations.StationLoader do
   defp load_default_stations do
     case read_default_stations_config() do
       {:ok, stations} ->
-        Enum.each(stations, fn station ->
-          station_id = String.to_atom(station["station_id"])
+        existing_stations = ElixirFastCharge.ChargingStationSupervisor.list_stations()
+
+        if map_size(existing_stations) > 0 do
+          IO.puts("Stations already loaded by another node")
+          {:ok, map_size(existing_stations)}
+        else
+          IO.puts("Loading stations on this node...")
+          Enum.each(stations, fn station ->
+            station_id = String.to_atom(station["station_id"])
           station_data = %{
             available: station["available"],
             location: %{
@@ -48,9 +53,10 @@ defmodule ElixirFastCharge.ChargingStations.StationLoader do
             {:error, reason} ->
               IO.puts("✗ Error cargando estación #{station["station_id"]}: #{inspect(reason)}")
           end
-        end)
-        IO.puts("✓ Carga de estaciones completada: #{length(stations)} estaciones")
-        {:ok, length(stations)}
+          end)
+          IO.puts("✓ Carga de estaciones completada: #{length(stations)} estaciones")
+          {:ok, length(stations)}
+        end
       {:error, reason} ->
         IO.puts("✗ Error cargando estaciones por defecto: #{inspect(reason)}")
         {:error, reason}
