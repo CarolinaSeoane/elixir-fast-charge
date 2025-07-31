@@ -67,7 +67,7 @@ defmodule ElixirFastCharge.Finder do
 
   defp preference_matches_shift?(preference, shift) do
     # system fields, not criteria. Must be ignored
-    filter_fields = [:alert, :preference_id, :timestamp, :username]
+    filter_fields = [:alert, :preference_id, :timestamp, :username, :pid]
 
     result = Enum.all?(preference, fn {key, value} ->
       if key in filter_fields do
