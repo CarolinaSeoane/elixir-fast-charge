@@ -33,7 +33,7 @@ defmodule ElixirFastCharge.ShiftMonitor do
         has_replicated_state = check_for_replicated_state()
 
         if has_replicated_state do
-          Logger.info("🔄 ShiftAgent missing but state exists - recreating...")
+          Logger.info("ShiftAgent missing but state exists - recreating...")
           recreate_shift_agent()
         else
           Logger.debug("ShiftAgent missing but no replicated state found")
@@ -85,13 +85,13 @@ defmodule ElixirFastCharge.ShiftMonitor do
 
     case Horde.DynamicSupervisor.start_child(ElixirFastCharge.Finder, child_spec) do
       {:ok, pid} ->
-        Logger.info("✅ ShiftAgent recreated successfully: #{inspect(pid)} on #{node(pid)}")
+        Logger.info("ShiftAgent recreated successfully: #{inspect(pid)} on #{node(pid)}")
 
       {:error, {:already_started, pid}} ->
-        Logger.info("⚠️  ShiftAgent already running: #{inspect(pid)} on #{node(pid)}")
+        Logger.info("ShiftAgent already running: #{inspect(pid)} on #{node(pid)}")
 
       {:error, reason} ->
-        Logger.error("❌ Failed to recreate ShiftAgent: #{inspect(reason)}")
+        Logger.error("Failed to recreate ShiftAgent: #{inspect(reason)}")
     end
   end
 end

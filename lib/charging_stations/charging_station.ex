@@ -43,14 +43,27 @@ defmodule ElixirFastCharge.ChargingStations.ChargingStation do
       {:ok, _} ->
         IO.puts("Estación #{station_id} registrada en Horde Registry (nodo: #{node()})")
 
-        initial_state = %{
-          station_id: station_id,
-          available: Map.get(station_data, :available, true),
-          location: Map.get(station_data, :location, %{}),
-          charging_points: Map.get(station_data, :charging_points, [])
-        }
+        # Try to recover state from other nodes
+        recovered_state = try_recover_state(station_id)
 
-        {:ok, initial_state}
+        final_state = case recovered_state do
+          nil ->
+            IO.puts("🆕 Station #{station_id}: Starting with new state")
+            %{
+              station_id: station_id,
+              available: Map.get(station_data, :available, true),
+              location: Map.get(station_data, :location, %{}),
+              charging_points: Map.get(station_data, :charging_points, [])
+            }
+          state ->
+            IO.puts("🔄 Station #{station_id}: Recovered state with #{length(state.charging_points)} points")
+            state
+        end
+
+        # Replicate initial state to other nodes
+        replicate_state(final_state)
+
+        {:ok, final_state}
 
       {:error, {:already_registered, _}} ->
         {:stop, :station_already_exists}
@@ -97,6 +110,10 @@ defmodule ElixirFastCharge.ChargingStations.ChargingStation do
     end)
 
     new_state = %{state | charging_points: updated_points}
+
+    # Replicate state after change
+    replicate_state(new_state)
+
     {:reply, :ok, new_state}
   end
 
@@ -156,6 +173,100 @@ defmodule ElixirFastCharge.ChargingStations.ChargingStation do
       IO.puts("Punto de carga #{point_id} no encontrado")
       {:reply, {:error, "Punto de carga no encontrado"}, state}
     end
+  end
+
+  # === STATE REPLICATION AND RECOVERY ===
+
+  defp try_recover_state(station_id) do
+    # Check all connected nodes for replicated state
+    all_nodes = [Node.self() | Node.list()]
+
+    recovered_state = Enum.find_value(all_nodes, fn node ->
+      try do
+        case :rpc.call(node, __MODULE__, :get_replicated_state, [station_id], 5000) do
+          {:ok, state} when is_map(state) ->
+            IO.puts("✅ Station #{station_id}: Found replicated state on #{node}")
+            state
+          _ -> nil
+        end
+      rescue
+        _ -> nil
+      end
+    end)
+
+    # If no remote state found, check locally
+    if recovered_state do
+      recovered_state
+    else
+      case :ets.lookup(:station_replicas, station_id) do
+        [{^station_id, state}] ->
+          IO.puts("✅ Station #{station_id}: Found state locally!")
+          state
+        [] ->
+          IO.puts("😞 Station #{station_id}: No replicated state found")
+          nil
+      end
+    end
+  end
+
+  defp replicate_state(state) do
+    station_id = state.station_id
+
+    # Replicate to all other connected nodes asynchronously
+    all_nodes = [Node.self() | Node.list()]
+
+    Enum.each(all_nodes, fn node ->
+      Task.start(fn ->
+        try do
+          :rpc.call(node, __MODULE__, :store_replicated_state, [station_id, state], 2000)
+        rescue
+          _ -> :ok
+        end
+      end)
+    end)
+  end
+
+  # === PUBLIC FUNCTIONS FOR RPC ACCESS ===
+
+  def get_replicated_state(station_id) do
+    case :ets.lookup(:station_replicas, station_id) do
+      [{^station_id, state}] -> {:ok, state}
+      [] -> {:error, :not_found}
+    end
+  end
+
+  def store_replicated_state(station_id, state) do
+    :ets.insert(:station_replicas, {station_id, state})
+    :ok
+  end
+
+  # === DEBUG FUNCTIONS ===
+
+  def show_all_replicas do
+    all_nodes = [Node.self() | Node.list()]
+
+    IO.puts("\n🔍 === STATION REPLICAS ACROSS CLUSTER ===")
+
+    Enum.each(all_nodes, fn node ->
+      try do
+        replicas = :rpc.call(node, :ets, :tab2list, [:station_replicas], 5000)
+        IO.puts("📍 Node #{node}:")
+
+        case replicas do
+          stations when is_list(stations) and length(stations) > 0 ->
+            Enum.each(stations, fn {station_id, state} ->
+              point_count = length(state.charging_points || [])
+              IO.puts("  🏭 #{station_id}: #{point_count} points, available: #{state.available}")
+            end)
+          _ ->
+            IO.puts("  (no station replicas)")
+        end
+      rescue
+        _ -> IO.puts("📍 Node #{node}: (no response)")
+      end
+    end)
+
+    IO.puts("")
   end
 
 end

@@ -11,6 +11,7 @@ defmodule ElixirFastCharge.Application do
     :ets.new(:user_replicas, [:set, :public, :named_table])
     :ets.new(:preference_replicas, [:set, :public, :named_table])
     :ets.new(:shift_replicas, [:set, :public, :named_table])
+    :ets.new(:station_replicas, [:set, :public, :named_table])
 
     children = [
       # 1. libcluster para descubrimiento de nodos (PRIMERO)
@@ -53,9 +54,10 @@ defmodule ElixirFastCharge.Application do
 
       # otros
       {ElixirFastCharge.Finder, []},
-      {ElixirFastCharge.ChargingStations.StationLoader, []},
-      {ElixirFastCharge.PreferenceMonitor, []},
-      {ElixirFastCharge.ShiftMonitor, []},
+              {ElixirFastCharge.ChargingStations.StationLoader, []},
+        {ElixirFastCharge.PreferenceMonitor, []},
+        {ElixirFastCharge.ShiftMonitor, []},
+        {ElixirFastCharge.StationMonitor, []},
       {Plug.Cowboy, scheme: :http, plug: ElixirFastCharge.MainRouter, options: [port: port, ref: :http_server]}
     ]
 
