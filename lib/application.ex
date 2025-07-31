@@ -54,10 +54,9 @@ defmodule ElixirFastCharge.Application do
 
       # otros
       {ElixirFastCharge.Finder, []},
-              {ElixirFastCharge.ChargingStations.StationLoader, []},
-        {ElixirFastCharge.PreferenceMonitor, []},
-        {ElixirFastCharge.ShiftMonitor, []},
-        {ElixirFastCharge.StationMonitor, []},
+      {ElixirFastCharge.ChargingStations.StationLoader, []},
+      {ElixirFastCharge.PreferenceMonitor, []},
+      {ElixirFastCharge.ShiftMonitor, []},
       {Plug.Cowboy, scheme: :http, plug: ElixirFastCharge.MainRouter, options: [port: port, ref: :http_server]}
     ]
 
