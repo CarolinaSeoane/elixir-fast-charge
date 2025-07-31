@@ -85,13 +85,13 @@ defmodule ElixirFastCharge.PreferenceMonitor do
 
     case Horde.DynamicSupervisor.start_child(ElixirFastCharge.Finder, child_spec) do
       {:ok, pid} ->
-        Logger.info("✅ PreferenceAgent recreated successfully: #{inspect(pid)} on #{node(pid)}")
+        Logger.info("PreferenceAgent recreated successfully: #{inspect(pid)} on #{node(pid)}")
 
       {:error, {:already_started, pid}} ->
-        Logger.info("⚠️  PreferenceAgent already running: #{inspect(pid)} on #{node(pid)}")
+        Logger.info("PreferenceAgent already running: #{inspect(pid)} on #{node(pid)}")
 
       {:error, reason} ->
-        Logger.error("❌ Failed to recreate PreferenceAgent: #{inspect(reason)}")
+        Logger.error("Failed to recreate PreferenceAgent: #{inspect(reason)}")
     end
   end
 end
