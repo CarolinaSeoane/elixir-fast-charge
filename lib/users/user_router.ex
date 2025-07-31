@@ -207,7 +207,7 @@ defmodule ElixirFastCharge.UserRouter do
   end
 
   defp preference_matches_shift_completely?(preference, shift) do
-    system_fields = [:alert, :preference_id, :timestamp, :username]
+    system_fields = [:alert, :preference_id, :timestamp, :username, :pid]
 
     # Verificar que todos los campos de la preferencia (excepto los del sistema) coincidan con el turno
     result = Enum.all?(preference, fn {key, value} ->
