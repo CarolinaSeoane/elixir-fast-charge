@@ -9,7 +9,7 @@ defmodule ElixirFastCharge.UserDynamicSupervisor do
         child_spec = %{
           id: {ElixirFastCharge.User, username},
           start: {ElixirFastCharge.User, :start_link, [{username, password}]},
-          restart: :temporary,
+          restart: :permanent,
           shutdown: 5000,
           type: :worker
         }

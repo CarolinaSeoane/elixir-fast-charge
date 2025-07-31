@@ -7,6 +7,10 @@ defmodule ElixirFastCharge.Application do
     port = String.to_integer(System.get_env("PORT") || "5014")
     prometheus_port = port + 5000
 
+    # Replication
+    :ets.new(:user_replicas, [:set, :public, :named_table])
+    IO.puts("Created table user_replicas in node #{node()}")
+
     children = [
       # 1. libcluster para descubrimiento de nodos (PRIMERO)
       {Cluster.Supervisor, [
@@ -49,6 +53,7 @@ defmodule ElixirFastCharge.Application do
       # otros
       {ElixirFastCharge.Finder, []},
       {ElixirFastCharge.ChargingStations.StationLoader, []},
+      {ElixirFastCharge.UserMonitor, []},
       {Plug.Cowboy, scheme: :http, plug: ElixirFastCharge.MainRouter, options: [port: port, ref: :http_server]}
     ]
 
