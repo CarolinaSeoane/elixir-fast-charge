@@ -16,11 +16,11 @@ mix deps.get
 mix deps.compile
 ```
 
-## Running the Distributed System
+## Running the distributed system
 
 The application is designed to run as a distributed system with multiple nodes. Each node needs to be started with a unique name and port.
 
-### Starting the Nodes
+### Starting the nodes
 
 Open different terminal windows for each node you want to start. Here's how to start two nodes:
 
@@ -34,13 +34,13 @@ PORT=4001 iex --name node1@127.0.0.1 -S mix
 PORT=4002 iex --name node2@127.0.0.1 -S mix
 ```
 
-### Port Configuration
+### Port configuration
 
 Each node runs two services:
 - Main HTTP API: Uses the specified PORT (e.g., 4001, 4002)
 - Prometheus Metrics: Automatically uses PORT + 5000 (e.g., 9001, 9002)
 
-### Node Discovery
+### Node discovery
 
 The nodes will automatically discover each other using libcluster. The configured nodes are:
 - node1@127.0.0.1
@@ -48,6 +48,7 @@ The nodes will automatically discover each other using libcluster. The configure
 
 ## Architecture
 
+### Libraries and technologies
 The application uses:
 - Horde for distributed Registry and Supervisor
 - Plug.Cowboy for HTTP API
@@ -55,6 +56,9 @@ The application uses:
 - Prometheus for metrics collection
 - ETS tables for distributed data replication
 - Monitors for certain data replication
+
+### Supervision tree
+<img width="1951" height="512" alt="image" src="https://github.com/user-attachments/assets/a8fd1e3a-ff7b-4f30-bc06-167b147fbb87" />
 
 ## API Endpoints
 
