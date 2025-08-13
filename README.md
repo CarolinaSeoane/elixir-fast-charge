@@ -60,5 +60,10 @@ The application uses:
 ### Supervision tree
 <img width="1951" height="512" alt="image" src="https://github.com/user-attachments/assets/a8fd1e3a-ff7b-4f30-bc06-167b147fbb87" />
 
-## API Endpoints
+## How to test this application
+
+### API endpoints
 Download the postman [collection](https://drive.google.com/file/d/1a-EE2MrX1ea75GjBs_UxmQwch6OlwCIv/view?usp=sharing)
+
+### Frontend application
+We also have a [frontend](https://github.com/BelenSeoane/elixir-fast-charge-fe) application you can run
